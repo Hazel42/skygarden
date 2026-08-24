@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>🏮 Sakura Sky Garden</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div class="vignette"></div>
+
+  <div id="hud">
+    <div id="counter" class="panel">
+      <div class="essence"><span class="eicon">✨</span><span id="essenceVal">0</span><span id="comboBadge" class="hidden">×1.0</span><span id="buffPill" class="hidden">🔥 ×2</span><span id="lvlVal" class="lvltag">Lv 1</span></div>
+      <div class="xpbar"><div id="xpFill"></div></div>
+      <div class="rate"><span id="rateVal">+0/s</span><span>·</span><span id="tapVal">tap +1</span></div>
+    </div>
+
+    <div id="topRight">
+      <button id="btnSound" class="iconbtn" title="Sound">🔊</button>
+      <button id="btnTime" class="iconbtn" title="Time flow">1×</button>
+      <button id="btnPhoto" class="iconbtn photo-exempt" title="Photo mode">📷</button>
+      <button id="btnHelp" class="iconbtn" title="Help">?</button>
+    </div>
+
+    <div id="helpPanel" class="panel hidden">
+      <h3>🌸 Sakura Sky Garden</h3>
+      <p><b>Tap / click</b> the garden to gather spirit essence.</p>
+      <p><b>Drag</b> to orbit · <b>scroll / pinch</b> to zoom · <b>right-drag</b> to pan.</p>
+      <p class="dim" id="statLines"></p>
+      <div class="ascbox">
+        <div class="asct">Immortal Stars · <span id="starsVal">⭐ 0</span></div>
+        <div class="dim">Permanent ×<span id="starMult">1.00</span> to all rates · +3 build slots per ascension</div>
+        <div class="xpbar"><div id="ascFill"></div></div>
+        <div class="dim" id="ascHint"></div>
+        <button id="btnAscend" class="danger asc">🔒 Ascend at Lv 12</button>
+      </div>
+      <button id="btnReset" class="danger">↺ Reset garden</button>
+    </div>
+
+    <div id="upgradePanel" class="hidden"></div>
+
+    <div id="buildPanel" class="hidden">
+      <div class="bphead">🔨 Build the Garden</div>
+      <div id="buildList"></div>
+      <div id="slotsInfo" class="dim"></div>
+      <div id="buildHint" class="hidden"></div>
+      <div class="bprows">
+        <button id="btnDeleteMode" class="mini">🗑 Remove: OFF</button>
+        <button id="btnBuildDone" class="mini done">✕ Done</button>
+      </div>
+    </div>
+
+    <div id="questsPanel" class="hidden">
+      <div class="bphead">📜 Garden Tasks</div>
+      <div id="questList"></div>
+      <div class="dim" style="margin:4px 6px">New tasks appear after claiming</div>
+    </div>
+
+    <div id="banner"><div class="bt"></div><div class="bs"></div></div>
+
+    <button id="rainBtn" class="pillbtn hidden">🌧️ Rain</button>
+    <button id="btnQuests" class="pillbtn">📜 Tasks</button>
+    <button id="btnBuild" class="pillbtn hidden">🔨 Build</button>
+    <button id="btnUpgrades" class="pillbtn">✨ Upgrades</button>
+    <div id="hint" class="pillbtn hidden">✧ tap the garden to gather essence ✧</div>
+    <div id="toast" style="opacity:0"></div>
+    <div id="floaters"></div>
+  </div>
+
+  <div id="intro">
+    <div class="ititle">桜<span>Sakura Sky Garden</span></div>
+    <div class="isub">a relaxing voxel sanctuary among the clouds</div>
+    <div class="ibegin">TAP TO BEGIN</div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
