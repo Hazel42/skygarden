@@ -18,7 +18,7 @@
     <div id="counter" class="panel">
       <div class="essence"><span class="eicon">✨</span><span id="essenceVal">0</span><span id="comboBadge" class="hidden">×1.0</span><span id="buffPill" class="hidden">🔥 ×2</span><span id="lvlVal" class="lvltag">Lv 1</span></div>
       <div class="xpbar"><div id="xpFill"></div></div>
-      <div class="rate"><span id="rateVal">+0/s</span><span>·</span><span id="tapVal">tap +1</span></div>
+      <div class="rate"><span id="cloudState" class="hidden">☁️</span><span id="rateVal">+0/s</span><span>·</span><span id="tapVal">tap +1</span></div>
     </div>
 
     <div id="topRight" class="panel">
@@ -30,6 +30,7 @@
     </div>
 
     <div id="helpPanel" class="panel hidden">
+      <button class="pclose" id="btnCloseHelp" title="Close">✕</button>
       <h3>🌸 Sakura Sky Garden</h3>
       <p><b>Tap / click</b> the garden to gather spirit essence.</p>
       <p><b>Drag</b> to orbit · <b>scroll / pinch</b> to zoom · <b>right-drag</b> to pan.</p>
@@ -41,26 +42,35 @@
         <div class="dim" id="ascHint"></div>
         <button id="btnAscend" class="danger asc">🔒 Ascend at Lv 12</button>
       </div>
+      <div class="bprows" style="margin-top:10px">
+        <button id="btnExport" class="mini">⤓ Export save</button>
+        <button id="btnImport" class="mini">⤒ Import</button>
+      </div>
       <button id="btnReset" class="danger">↺ Reset garden</button>
     </div>
 
-    <div id="upgradePanel" class="hidden"></div>
+    <div id="upgradePanel" class="hidden">
+      <div class="phead"><span>✨ Blessings</span><button class="pclose" id="btnCloseUpgrades" title="Close">✕</button></div>
+    </div>
 
     <div id="buildPanel" class="hidden">
-      <div class="bphead">🔨 Build the Garden</div>
+      <div class="phead"><span>🔨 Build the Garden</span><button class="pclose" id="btnCloseBuild" title="Close">✕</button></div>
       <div id="buildList"></div>
       <div id="slotsInfo" class="dim"></div>
       <div id="buildHint" class="hidden"></div>
       <div class="bprows">
         <button id="btnDeleteMode" class="mini">🗑 Remove: OFF</button>
-        <button id="btnBuildDone" class="mini done">✕ Done</button>
+        <button id="btnBuildDone" class="mini done">✓ Done</button>
       </div>
     </div>
 
     <div id="questsPanel" class="hidden">
-      <div class="bphead">📜 Garden Tasks</div>
+      <div class="phead"><span>📜 Tasks & 🏆 Feats</span><button class="pclose" id="btnCloseQuests" title="Close">✕</button></div>
       <div id="questList"></div>
       <div class="dim" style="margin:4px 6px">New tasks appear after claiming</div>
+      <div class="phead" style="margin-top:10px"><span>🏆 Feats · <span id="achCount">0</span></span></div>
+      <div id="achGrid"></div>
+      <div class="dim" style="margin:4px 6px">Feats are permanent milestones</div>
     </div>
 
     <div id="gamebar">
@@ -102,11 +112,12 @@
     <div id="floaters"></div>
   </div>
 
-  <div id="intro">
-    <div class="ititle">桜<span>Sakura Sky Garden</span></div>
-    <div class="isub">a relaxing voxel sanctuary among the clouds</div>
-    <div class="ibegin">TAP TO BEGIN</div>
-  </div>
+    <div id="intro">
+      <div class="ititle">桜<span>Sakura Sky Garden</span></div>
+      <div class="isub">a relaxing voxel sanctuary among the clouds</div>
+      <div class="ibegin">TAP TO BEGIN</div>
+      <div id="introLoad">🌱 growing the garden…</div>
+    </div>
 
   <script type="module" src="/src/main.js"></script>
 </body>

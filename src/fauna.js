@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import gsap from 'gsap'
 import { glowTex } from './textures.js'
 import { C } from './palette.js'
 
@@ -88,6 +89,7 @@ function makeFox() {
   box(0.03, 0.07, 0.16, '#4A3428', 1.19, 0.88, -0.17)
   const tail = box(1.0, 0.3, 0.32, C.fox, -0.35, 0.3, 0.62, 0.5)
   box(0.34, 0.32, 0.34, C.foxCream, -0.78, 0.34, 0.86, 0.5)
+  g.traverse(o => { if (o.isMesh) o.userData.special = 'fox' })
   g.userData.body = tail.parent.children[0]
   g.userData.breathG = g
   return g
@@ -442,6 +444,20 @@ export class Fauna {
     const p = onIsle ? this.anchors.foxIsle : this.anchors.foxMain
     this.fox.position.set(p.x, p.y, p.z)
     this.fox.rotation.y = onIsle ? Math.PI : 0.6
+  }
+
+  foxHop() {
+    if (!this.fox.visible || this.fox.userData.hopping) return
+    this.fox.userData.hopping = true
+    this.fox.userData.baseY = this.fox.position.y
+    gsap.to(this.fox.position, {
+      y: '+=0.38', duration: 0.16, yoyo: true, repeat: 1,
+      ease: 'sine.out',
+      onComplete: () => {
+        this.fox.position.y = this.fox.userData.baseY
+        this.fox.userData.hopping = false
+      }
+    })
   }
 
   update(dt) {

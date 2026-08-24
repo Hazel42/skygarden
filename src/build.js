@@ -1,53 +1,12 @@
 import * as THREE from 'three'
 import gsap from 'gsap'
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-
-function hash2(x, y, s) {
-  let n = (x * 374761393 + y * 668265263 + s * 1013904223) | 0
-  n = Math.imul(n ^ (n >>> 13), 1274126177)
-  n = n ^ (n >>> 16)
-  return (n >>> 0) / 4294967296
-}
-
-const BOX = new THREE.BoxGeometry(1, 1, 1)
-const DIRS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]
-
-function bakeGeo(sub, key) {
-  if (!sub.length) return null
-  const parts = []
-  for (const v of sub) {
-    let br = 1.15, n = 0, openTop = true
-    if (!v.glow) {
-      br = 1; n = 0; openTop = true
-      for (const d of DIRS) {
-        const kk = (v.x + d[0]) + ',' + (v.y + d[1]) + ',' + (v.z + d[2])
-        if (key.has(kk)) { n++; if (d[1] === 1) openTop = false }
-      }
-      br = 1 - n * 0.042 + (openTop ? 0.05 : 0)
-    }
-    const jit = (hash2(Math.round(v.x * 7) | 0, Math.round(v.z * 13) | 0, (v.y * 3 + 77) | 0) - 0.5) * 0.085
-    const col = new THREE.Color(v.c).multiplyScalar(br + jit)
-    const g = BOX.clone()
-    const s = v.s ?? 1
-    g.scale(s, s, s)
-    g.translate(v.x, v.y, v.z)
-    const ca = new Float32Array(g.attributes.position.count * 3)
-    for (let i = 0; i < g.attributes.position.count; i++) {
-      ca[i * 3] = col.r; ca[i * 3 + 1] = col.g; ca[i * 3 + 2] = col.b
-    }
-    g.setAttribute('color', new THREE.BufferAttribute(ca, 3))
-    parts.push(g)
-  }
-  const merged = mergeGeometries(parts, false)
-  parts.forEach(p => p.dispose())
-  return merged
-}
+import { buildVoxelGeometry, createVoxelSolidMaterial } from './voxel.js'
 
 const CATALOG_DEF = [
   {
     id: 'star', icon: '✨', name: 'Starbloom', cost: 15, zone: 'land', minLv: 1,
     fn(add) {
-      add(0, 1, 0, '#6FBF73', { size: 0.32 })
+      add(0, 1, 0, '#6FBF73', { size: 0.32, sway: 0.9 })
       add(0, 1.55, 0, '#FFF0B8', { glow: true, size: 0.42 })
     }
   },
@@ -71,7 +30,7 @@ const CATALOG_DEF = [
         const a = (i / 14) * Math.PI * 2
         const rr = 0.9 + (i % 3) * 0.25
         add(Math.cos(a) * rr, 2.6 + (i % 4) * 0.45, Math.sin(a) * rr,
-          cols[i % 3], { size: 0.62 })
+          cols[i % 3], { size: 0.62, sway: 0.5 + (i % 3) * 0.2, sss: 0.85 })
       }
       add(0, 3.4, 0, '#FFD4E8', { glow: true, size: 0.5 })
     }
@@ -81,8 +40,8 @@ const CATALOG_DEF = [
     fn(add) {
       for (const [ox, oz, h] of [[-0.5, -0.3, 5], [0.4, 0.3, 6], [0, -0.6, 4]]) {
         for (let y = 1; y <= h; y++)
-          add(ox, y, oz, y % 3 === 0 ? '#AFDF9A' : '#8FC97F', { size: 0.42 })
-        add(ox + 0.5, h + 0.6, oz, '#AFDF9A', { size: 0.36 })
+          add(ox, y, oz, y % 3 === 0 ? '#AFDF9A' : '#8FC97F', { size: 0.42, sway: 0.22 })
+        add(ox + 0.5, h + 0.6, oz, '#AFDF9A', { size: 0.36, sway: 0.75, sss: 0.6 })
       }
     }
   },
@@ -155,7 +114,7 @@ export class Builder {
     this.state = state
     this.hooks = hooks
 
-    this.solidMat = new THREE.MeshLambertMaterial({ vertexColors: true })
+    this.solidMat = createVoxelSolidMaterial()
     this.glowMat = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false })
     this.ghostOk = new THREE.MeshBasicMaterial({
       color: '#7FD88F', transparent: true, opacity: 0.5,
@@ -169,11 +128,15 @@ export class Builder {
     this.templates = new Map()
     for (const item of CATALOG_DEF) {
       const list = []
-      item.fn((x, y, z, c, o) => list.push({ x, y, z, c, s: o?.s ?? o?.size ?? 1, glow: !!o?.glow, win: !!o?.win }))
-      const key = new Map(list.map(v => [v.x + ',' + v.y + ',' + v.z, true]))
+      item.fn((x, y, z, c, o) => list.push({
+        x, y, z, c, s: o?.s ?? o?.size ?? 1,
+        glow: !!o?.glow, win: !!o?.win,
+        sway: o?.sway ?? 0, sss: o?.sss ?? 0
+      }))
+      const occ = new Map(list.map(v => [v.x + ',' + v.y + ',' + v.z, v]))
       this.templates.set(item.id, {
-        solid: bakeGeo(list.filter(v => !v.glow && !v.win), key),
-        glow: bakeGeo(list.filter(v => v.glow || v.win), key)
+        solid: buildVoxelGeometry(list.filter(v => !v.glow && !v.win), { ao: true, occupancy: occ }),
+        glow: buildVoxelGeometry(list.filter(v => v.glow || v.win), { ao: false, flat: true, occupancy: occ })
       })
     }
 

@@ -1,4 +1,4 @@
-import { UPGRADES, fmt } from './state.js'
+import { UPGRADES, ACHIEVEMENTS, fmt } from './state.js'
 
 export class UI {
   constructor(state, hooks) {
@@ -95,6 +95,12 @@ export class UI {
         setTimeout(() => { this._resetArm = false; b.textContent = '↺ Reset garden' }, 3000)
       } else hooks.onReset()
     })
+    this.$('btnCloseUpgrades').addEventListener('click', () => this.toggleUpgrades())
+    this.$('btnCloseBuild').addEventListener('click', () => this.closeBuild())
+    this.$('btnCloseQuests').addEventListener('click', () => this.toggleQuests())
+    this.$('btnCloseHelp').addEventListener('click', () => this.toggleHelp())
+    this.$('btnExport').addEventListener('click', () => hooks.onExport())
+    this.$('btnImport').addEventListener('click', () => hooks.onImport())
 
     this.intro.addEventListener('click', () => {
       if (this.intro.classList.contains('fade')) return
@@ -195,6 +201,23 @@ export class UI {
     this.helpPanel.classList.toggle('hidden', !this._helpOpen)
   }
 
+  anyPanelOpen() {
+    return !this.panel.classList.contains('hidden') ||
+      !this.buildPanel.classList.contains('hidden') ||
+      !this.questsPanel.classList.contains('hidden') ||
+      this._helpOpen
+  }
+
+  closeEverything() {
+    this.panel.classList.add('hidden')
+    this.dock?.detach(this.panel)
+    this.closeBuild()
+    this.questsPanel.classList.add('hidden')
+    this.dock?.detach(this.questsPanel)
+    if (this._helpOpen) this.toggleHelp()
+    this.setBarActive(null)
+  }
+
   questText(q) {
     const map = {
       collect: `Gather ✨ ${fmt(q.target)} essence`,
@@ -225,6 +248,22 @@ export class UI {
       btn.addEventListener('click', () => this.hooks.onClaimQuest(q.id))
       card.appendChild(btn)
       this.questList.appendChild(card)
+    }
+
+    if (!this.achGrid) this.achGrid = this.$('achGrid')
+    if (this.achGrid) {
+      const s = this.state
+      const done = ACHIEVEMENTS.filter(a => s.ach[a.id]).length
+      this.$('achCount').textContent = `${done} / ${ACHIEVEMENTS.length}`
+      this.achGrid.innerHTML = ''
+      for (const a of ACHIEVEMENTS) {
+        const got = !!s.ach[a.id]
+        const chip = document.createElement('div')
+        chip.className = 'ach' + (got ? ' done' : '')
+        chip.title = a.desc + (got ? ' · ✓' : '')
+        chip.innerHTML = `<span class="ai">${got ? a.icon : '🔒'}</span><span>${a.name}</span>`
+        this.achGrid.appendChild(chip)
+      }
     }
   }
 
@@ -305,7 +344,6 @@ export class UI {
     if (this._selectedBuild !== null) {
       this._selectedBuild = null
       this.hooks.onBuildSelect(null)
-      return
     }
     this.hooks.onBuildMode('place')
     this.btnDeleteMode.classList.remove('on')
@@ -410,6 +448,16 @@ export class UI {
     this._saveEl.classList.add('show')
     clearTimeout(this._saveT)
     this._saveT = setTimeout(() => this._saveEl.classList.remove('show'), 900)
+  }
+
+  setCloudState(s) {
+    const el = this.$('cloudState')
+    if (!el) return
+    el.classList.remove('hidden')
+    if (s === 'sync') { el.textContent = '☁️…'; el.className = 'cloudsync' }
+    else if (s === 'on') { el.textContent = '☁️ ✓'; el.className = 'cloudon' }
+    else if (s === 'err') { el.textContent = '☁️ ⚠'; el.className = 'clouderr' }
+    else { el.classList.add('hidden'); el.className = 'hidden' }
   }
 
   showBanner(title, sub) {

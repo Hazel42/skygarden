@@ -247,7 +247,9 @@ export class World {
       if ((ox / rad) ** 2 + (oy / (rad * 0.7)) ** 2 + (oz / rad) ** 2 > 1) continue
       vg.add(tx + Math.round(ox), topY + h + 1 + Math.round(oy), tz + Math.round(oz),
         rng() < 0.08 ? C.blossomGlow : cols[Math.floor(rng() * 3)],
-        rng() < 0.08 ? { glow: true, size: 0.5 } : { size: 0.58 })
+        rng() < 0.08
+          ? { glow: true, size: 0.5, sway: 0.6 }
+          : { size: 0.58, sway: 0.45 + rng() * 0.45, sss: 0.85 })
     }
     this.anchors.trees.push({ x: tx, y: topY + h + 2, z: tz, rad })
   }
@@ -422,10 +424,35 @@ export class World {
       const bump = Math.round(vnoise(x * 0.35, z * 0.35, 7) * 1.8 - 0.9)
       const topY = TOP + bump
       if (tuftRng() < 0.68) {
-        vg.add(x, topY + 0.68, z, tuftRng() < 0.5 ? C.grassD : C.bambooLight, { size: 0.3 })
+        vg.add(x, topY + 0.68, z, tuftRng() < 0.5 ? C.grassD : C.bambooLight, { size: 0.3, sway: 1 })
       } else {
         const fc = ['#FF9EC0', '#FFF3A6', '#FFFFFF', '#C9A7FF'][Math.floor(tuftRng() * 4)]
-        vg.add(x, topY + 0.7, z, fc, { size: 0.34 })
+        vg.add(x, topY + 0.7, z, fc, { size: 0.34, sway: 1, sss: 0.4 })
+      }
+    }
+
+    const edgeRng = mulberry32(313)
+    for (let x = -R; x <= R; x++)
+      for (let z = -R; z <= R; z++) {
+        const key = x + ',' + z
+        if (!this.surfMain.has(key)) continue
+        const d = Math.hypot(x, z)
+        const edge = R - 0.6 + (vnoise(x * 0.45 + 9, z * 0.45, 5) - 0.5) * 2.6
+        if (d < edge - 1.25) continue
+        vg.add(x, this.surfMain.get(key) - 0.3, z, C.grassC, { size: 1.06 })
+      }
+    for (let i = 0; i < 46; i++) {
+      const a = edgeRng() * Math.PI * 2
+      const rr = R - 1.2 + edgeRng() * 2.2
+      const x = Math.round(Math.cos(a) * rr), z = Math.round(Math.sin(a) * rr)
+      const key = x + ',' + z
+      if (!this.surfMain.has(key)) continue
+      const topY = this.surfMain.get(key)
+      const len = 1 + Math.floor(edgeRng() * 3)
+      for (let v = 0; v < len; v++) {
+        vg.add(x + (edgeRng() - 0.5) * 0.24, topY - 0.55 - v * 0.6, z + (edgeRng() - 0.5) * 0.24,
+          edgeRng() < 0.5 ? C.moss : '#7A9A4A',
+          { size: Math.max(0.16, 0.3 - v * 0.06), sway: 0.65 })
       }
     }
 
@@ -456,6 +483,11 @@ export class World {
         rng() < 0.6 ? C.crystalA : C.crystalB, { glow: true, size: 0.55 + rng() * 0.45 })
     }
 
+    vg.add(-12.2, TOP + 1.4, -2.1, C.stoneDeep, { size: 0.72 })
+    vg.add(-12.4, TOP + 1.55, -4.9, C.stone, { size: 0.8 })
+    vg.add(-12.9, TOP + 1.25, -3.5, C.stoneDeep, { size: 0.6 })
+    vg.add(-11.9, TOP + 1.1, -3.5, C.moss, { size: 0.5 })
+
     vg.build()
   }
 
@@ -463,21 +495,74 @@ export class World {
     const vg = this.islandVg
     const rng = mulberry32(tx * 31 + tz * 17 + 5)
     const baseY = TOP + 1
-    for (let i = 0; i < h; i++) vg.add(tx, baseY + i, tz, i % 2 ? C.wood : C.woodDark)
-    vg.add(tx + 1, baseY + h - 1, tz, C.woodDark)
-    vg.add(tx, baseY + h, tz + (rng() < 0.5 ? 1 : -1), C.wood)
+
+    vg.add(tx, baseY - 0.25, tz + 1, C.woodDark, { size: 0.55 })
+    vg.add(tx, baseY - 0.25, tz - 1, C.woodDark, { size: 0.5 })
+    vg.add(tx + 1, baseY - 0.25, tz, C.woodDark, { size: 0.5 })
+
+    const taper = [1.05, 0.92, 0.8, 0.68]
+    for (let i = 0; i < h; i++) {
+      vg.add(tx, baseY + i, tz, i % 2 ? C.wood : C.woodDark, { size: taper[Math.min(i, 3)] })
+    }
+
+    const armDirs = []
+    for (let a = 0; a < 3; a++) armDirs.push(rng() * Math.PI * 2)
+    for (const a of armDirs) {
+      const ax = Math.round(Math.cos(a)), az = Math.round(Math.sin(a))
+      const ay = baseY + h - 1 + Math.floor(rng() * 2)
+      vg.add(tx + ax, ay, tz + az, C.wood, { size: 0.55 })
+      vg.add(tx + ax * 2, ay + 1, tz + az * 2, C.woodDark, { size: 0.45 })
+    }
 
     const cy = baseY + h + 1
-    const cols = [C.blossomA, C.blossomB, C.blossomC]
-    for (let i = 0; i < 46; i++) {
-      let ox = (rng() * 2 - 1) * rad
-      let oy = (rng() * 2 - 1) * (rad * 0.62)
-      let oz = (rng() * 2 - 1) * rad
-      if ((ox / rad) ** 2 + (oy / (rad * 0.7)) ** 2 + (oz / rad) ** 2 > 1) continue
-      const px = tx + Math.round(ox), py = cy + Math.round(oy), pz = tz + Math.round(oz)
-      const shade = cols[Math.floor(rng() * 3)]
-      if (rng() < 0.075) vg.add(px, py, pz, C.blossomGlow, { glow: true })
-      else vg.add(px, py, pz, oy < -rad * 0.3 ? C.blossomB : shade)
+    const cols = [C.blossomA, C.blossomB, C.blossomC, C.blossomA]
+    const canopy = []
+    const blobs = [
+      [0, 0, 0, rad],
+      [rad * 0.55, rad * 0.28, -rad * 0.4, rad * 0.62],
+      [-rad * 0.5, rad * 0.18, rad * 0.45, rad * 0.58],
+      [rad * 0.1, -rad * 0.32, rad * 0.15, rad * 0.55]
+    ]
+    for (const [bx, by, bz, br] of blobs) {
+      for (let i = 0; i < 34; i++) {
+        const ox = bx + (rng() * 2 - 1) * br
+        const oy = by + (rng() * 2 - 1) * br * 0.66
+        const oz = bz + (rng() * 2 - 1) * br
+        if ((ox / (rad * 1.25)) ** 2 + (oy / (rad * 0.85)) ** 2 + (oz / (rad * 1.25)) ** 2 > 1) continue
+        canopy.push([tx + Math.round(ox), cy + Math.round(oy), tz + Math.round(oz), oy])
+      }
+    }
+    const seen = new Set()
+    for (const [px, py, pz, oy] of canopy) {
+      const k = px + ',' + py + ',' + pz
+      if (seen.has(k)) continue
+      seen.add(k)
+      const r = rng()
+      const leafOpts = { sway: 0.45 + rng() * 0.5, sss: 0.85 }
+      if (oy < -rad * 0.35) {
+        vg.add(px, py, pz, r < 0.5 ? C.blossomB : C.blossomC, leafOpts)
+      } else if (oy > rad * 0.4) {
+        vg.add(px, py, pz, r < 0.3 ? '#FFE4EF' : C.blossomA, leafOpts)
+      } else {
+        vg.add(px, py, pz, r < 0.06 ? C.blossomGlow : cols[Math.floor(rng() * 4)],
+          r < 0.06 ? { glow: true, sway: leafOpts.sway } : leafOpts)
+      }
+    }
+    const hangSpots = canopy.filter(c => c[3] < -rad * 0.2)
+    for (let i = 0; i < Math.min(5, hangSpots.length); i++) {
+      const [hx, hy, hz] = hangSpots[Math.floor(rng() * hangSpots.length)]
+      vg.add(hx, hy - 0.75, hz, C.blossomB, { size: 0.55, sway: 0.9, sss: 0.6 })
+      if (rng() < 0.5) vg.add(hx, hy - 1.35, hz, C.blossomC, { size: 0.4, sway: 1, sss: 0.6 })
+    }
+    for (let i = 0; i < 7; i++) {
+      const a = rng() * Math.PI * 2
+      const rr = 1.2 + rng() * 1.6
+      const gx = tx + Math.round(Math.cos(a) * rr)
+      const gz = tz + Math.round(Math.sin(a) * rr)
+      if (this.surfMain.has(gx + ',' + gz)) {
+        vg.add(gx, this.surfMain.get(gx + ',' + gz) + 0.72, gz,
+          rng() < 0.5 ? C.blossomA : C.blossomB, { size: 0.26 })
+      }
     }
     this.anchors.trees.push({ x: tx, y: cy + 1, z: tz, rad })
   }
@@ -493,9 +578,13 @@ export class World {
       if (d < 7.5 || d > ISLE_R - 1) continue
       const h = 5 + Math.floor(rng() * 3)
       for (let i = 0; i < h; i++)
-        vg.add(x, TOP + 1 + i, z, i % 3 === 2 ? C.bambooLight : C.bamboo, { size: 0.42 })
-      vg.add(x + 1, TOP + h, z, C.bambooLight, { size: 0.36 })
-      vg.add(x - 1, TOP + h - 1, z, C.bambooLight, { size: 0.36 })
+        vg.add(x, TOP + 1 + i, z, i % 3 === 2 ? C.bambooLight : C.bamboo, { size: 0.42, sway: 0.22 })
+      vg.add(x + 1, TOP + h, z, C.bambooLight, { size: 0.36, sway: 0.75, sss: 0.6 })
+      vg.add(x - 1, TOP + h - 1, z, C.bambooLight, { size: 0.36, sway: 0.75, sss: 0.6 })
+      if (rng() < 0.7) {
+        vg.add(x + 1.1 + (rng() - 0.5) * 0.3, TOP + 0.7, z + 0.7 + (rng() - 0.5) * 0.3,
+          C.bambooLight, { size: 0.26, sway: 0.5 })
+      }
     }
   }
 
@@ -509,20 +598,33 @@ export class World {
       for (let i = -off; i <= off; i++)
         for (let j = -off; j <= off; j++) {
           if (Math.abs(i) === off && Math.abs(j) === off && rng() < 0.5) continue
-          const mossy = l === lv - 1 && rng() < 0.65
-          vg.add(sx + i, TOP + 1 + l, sz + j, mossy ? C.moss : (rng() < 0.5 ? C.stone : C.stoneDeep))
+          const mossy = (l === lv - 1 && rng() < 0.65) || rng() < 0.12
+          const s = 0.78 + rng() * 0.24
+          const jx = (rng() - 0.5) * 0.18, jz = (rng() - 0.5) * 0.18
+          vg.add(sx + i + jx, TOP + 1 + l + (rng() - 0.5) * 0.1, sz + j + jz,
+            mossy ? C.moss : (rng() < 0.5 ? C.stone : C.stoneDeep), { size: s })
         }
+      if (l < lv - 1 && rng() < 0.6) {
+        vg.add(sx + (rng() - 0.5) * 1.4, TOP + 1 + l + 0.62, sz + (rng() - 0.5) * 1.4,
+          C.moss, { size: 0.3 })
+      }
     }
   }
 
   makeToro(px, pz) {
     const vg = this.islandVg
-    vg.add(px, TOP + 1, pz, C.stoneDeep, { size: 1 })
-    vg.add(px, TOP + 2, pz, C.stone, { size: 0.7 })
-    vg.add(px, TOP + 3, pz, '#FFE2A8', { win: true })
-    vg.add(px, TOP + 4, pz, C.stoneDeep, { size: 0.9 })
-    vg.add(px, TOP + 5, pz, C.stone, { size: 0.5 })
-    this.anchors.toroLights.push(new THREE.Vector3(px, TOP + 3, pz))
+    vg.add(px, TOP + 1.05, pz, C.stoneDeep, { size: 1.08 })
+    vg.add(px, TOP + 1.9, pz, C.stone, { size: 0.5 })
+    vg.add(px, TOP + 2.7, pz, C.stoneDeep, { size: 0.78 })
+    vg.add(px, TOP + 3.45, pz, '#FFE2A8', { win: true, size: 0.72 })
+    for (const [ox, oz] of [[0.34, 0.34], [-0.34, 0.34], [0.34, -0.34], [-0.34, -0.34]]) {
+      vg.add(px + ox, TOP + 3.45, pz + oz, C.woodDark, { size: 0.22 })
+    }
+    vg.add(px, TOP + 4.25, pz, C.stoneDeep, { size: 0.95 })
+    vg.add(px, TOP + 4.85, pz, C.stone, { size: 1.12 })
+    vg.add(px, TOP + 5.45, pz, C.stoneDeep, { size: 0.6 })
+    vg.add(px, TOP + 5.95, pz, C.gold, { glow: true, size: 0.28 })
+    this.anchors.toroLights.push(new THREE.Vector3(px, TOP + 3.45, pz))
   }
 
   makeLotus() {
@@ -534,6 +636,17 @@ export class World {
       const x = Math.round(POND.x + Math.cos(a) * rr)
       const z = Math.round(POND.z + Math.sin(a) * rr)
       vg.add(x, 9.92, z, C.lotusLeaf, { size: 0.85 })
+    }
+    for (let i = 0; i < 16; i++) {
+      const a = rng() * Math.PI * 2
+      const rr = POND.r - 1.3 + rng() * 0.9
+      const x = Math.round(POND.x + Math.cos(a) * rr)
+      const z = Math.round(POND.z + Math.sin(a) * rr)
+      const key = x + ',' + z
+      if (!this.surfMain.has(key)) continue
+      vg.add(x + (rng() - 0.5) * 0.4, this.surfMain.get(key) + 0.62, z + (rng() - 0.5) * 0.4,
+        rng() < 0.4 ? C.moss : (rng() < 0.5 ? C.stone : C.stoneDeep),
+        { size: 0.26 + rng() * 0.18 })
     }
     const spots = [[-4, -3], [-6, -4.5], [-3, -5.5]]
     for (const [fx, fz] of spots) {
@@ -664,6 +777,15 @@ export class World {
     this.pagodaVg = vg
 
     vg.box(-5, TOP, -5, 11, 1, 11, C.stone)
+    for (let i = -5; i <= 5; i += 2) {
+      if (Math.abs(i) <= 1) continue
+      vg.add(i, TOP + 0.85, -5, C.column, { size: 0.34 })
+      vg.add(i, TOP + 0.85, 5, C.column, { size: 0.34 })
+      if (Math.abs(i) > 1) {
+        vg.add(-5, TOP + 0.85, i, C.column, { size: 0.34 })
+        vg.add(5, TOP + 0.85, i, C.column, { size: 0.34 })
+      }
+    }
     const stories = 3 + tier
     let y = TOP + 1
     for (let s = 0; s < stories; s++) {
@@ -692,6 +814,18 @@ export class World {
             vg.add(x, y + 2, z, C.trim)
           }
         }
+      if (s === 0) {
+        for (const lx of [-2, 2]) {
+          vg.add(lx, y + 1.9, hw + 0.55, '#FFB36B', { glow: true, size: 0.34 })
+          vg.add(lx, y + 2.35, hw + 0.55, C.woodDark, { size: 0.22 })
+        }
+      }
+      for (const [cx2, cz2] of [[hw, hw], [hw, -hw], [-hw, hw], [-hw, -hw]]) {
+        const ox = cx2 > 0 ? 0.16 : -0.16
+        const oz = cz2 > 0 ? 0.16 : -0.16
+        vg.add(cx2 + ox, y + 2.42, cz2 + oz, C.woodDark, { size: 0.48 })
+        vg.add(cx2 + ox, y + 2.72, cz2 + oz, C.wood, { size: 0.36 })
+      }
       y = this.buildRoof(vg, y + 3, w)
     }
     vg.add(0, y, 0, C.gold, { size: 0.7 })
@@ -707,6 +841,8 @@ export class World {
     const hw0 = (startRW - 1) / 2
     for (const [sx, sz] of [[hw0, hw0], [hw0, -hw0], [-hw0, hw0], [-hw0, -hw0]]) {
       vg.add(sx, yStart - 0.55, sz, C.gold, { glow: true, size: 0.42 })
+      vg.add(sx, yStart + 0.42, sz, C.trim, { size: 0.62 })
+      vg.add(sx, yStart + 0.95, sz, C.gold, { glow: true, size: 0.3 })
     }
     while (rw >= w) {
       const hw = (rw - 1) / 2
@@ -718,8 +854,25 @@ export class World {
           else col = ((x + z) & 1) === 0 ? C.roofA : C.roofB
           vg.add(x, y, z, col)
         }
+      if (rw === startRW) {
+        for (let e = -hw + 1; e <= hw - 1; e++) {
+          vg.add(e, y - 0.32, hw, C.trim, { size: 0.55 })
+          vg.add(e, y - 0.32, -hw, C.trim, { size: 0.55 })
+          vg.add(hw, y - 0.32, e, C.trim, { size: 0.55 })
+          vg.add(-hw, y - 0.32, e, C.trim, { size: 0.55 })
+        }
+      }
       y++
       rw -= 2
+    }
+    const topHw = (w - 1) / 2
+    for (let i = -topHw; i <= topHw; i++) {
+      vg.add(i, y - 0.58, -topHw, C.gold, { size: 0.36 })
+      vg.add(i, y - 0.58, topHw, C.gold, { size: 0.36 })
+    }
+    for (const [cx2, cz2] of [[topHw, topHw], [topHw, -topHw], [-topHw, topHw], [-topHw, -topHw]]) {
+      vg.add(cx2, y - 0.12, cz2, C.column, { size: 0.52 })
+      vg.add(cx2, y + 0.38, cz2, C.gold, { glow: true, size: 0.3 })
     }
     return y
   }
@@ -745,12 +898,17 @@ export class World {
 
     const px = CX, pz = CZ
     for (const dz of [-2, 2]) {
+      vg.add(px, ITOP + 0.15, pz + dz, C.toriiDark, { size: 0.92 })
       for (let i = 0; i < 4; i++) vg.add(px, ITOP + 1 + i, pz + dz, i < 3 ? C.torii : C.toriiDark)
     }
-    vg.box(px - 2, ITOP + 4, pz - 2, 1, 1, 5, C.torii)
-    vg.box(px, ITOP + 4, pz - 1, 1, 1, 3, C.torii)
-    vg.box(px - 1, ITOP + 5, pz - 2, 3, 1, 5, C.toriiDark)
-    vg.add(px, ITOP + 6, pz, C.gold, { glow: true, size: 0.5 })
+    vg.box(px - 1, ITOP + 3.6, pz - 2, 1, 1, 5, C.torii)
+    vg.box(px, ITOP + 4.4, pz - 1, 1, 1, 3, C.toriiDark)
+    for (let z = -2; z <= 2; z++) vg.add(px, ITOP + 5, pz + z, C.torii)
+    vg.add(px, ITOP + 5.55, pz - 2, C.toriiDark, { size: 0.7 })
+    vg.add(px, ITOP + 5.55, pz + 2, C.toriiDark, { size: 0.7 })
+    vg.add(px, ITOP + 5.38, pz - 1, C.torii, { size: 0.85 })
+    vg.add(px, ITOP + 5.38, pz + 1, C.torii, { size: 0.85 })
+    vg.add(px, ITOP + 6.1, pz, C.gold, { glow: true, size: 0.45 })
 
     vg.add(CX + 3, ITOP + 1, CZ, C.stone, { size: 1 })
     vg.add(CX + 3, ITOP + 1, CZ - 1, C.stone, { size: 1 })
@@ -773,6 +931,8 @@ export class World {
     const dir = b2.clone().sub(b0).normalize()
     const side = new THREE.Vector3(-dir.z, 0, dir.x)
     const N = 13
+    const postsL = []
+    const postsR = []
     for (let i = 0; i <= N; i++) {
       const t = i / N
       const p = new THREE.Vector3()
@@ -782,9 +942,22 @@ export class World {
       vg.add(Math.round(p.x), Math.round(p.y), Math.round(p.z), i % 2 ? C.wood : C.woodDark)
       if (i % 2 === 0) {
         for (const sgn of [1, -1]) {
-          vg.add(Math.round(p.x + side.x * sgn), Math.round(p.y) + 1, Math.round(p.z + side.z * sgn),
-            C.woodDark, { size: 0.5 })
+          const pp = new THREE.Vector3(
+            Math.round(p.x + side.x * sgn * 0.75),
+            Math.round(p.y) + 1,
+            Math.round(p.z + side.z * sgn * 0.75)
+          )
+          vg.add(pp.x, pp.y, pp.z, C.woodDark, { size: 0.5 })
+          if (sgn === 1) postsL.push(pp)
+          else postsR.push(pp)
         }
+      }
+    }
+    for (const arr of [postsL, postsR]) {
+      for (let j = 0; j < arr.length - 1; j++) {
+        const mid = arr[j].clone().add(arr[j + 1]).multiplyScalar(0.5)
+        mid.y -= 0.45
+        vg.add(mid.x, mid.y, mid.z, '#5A4028', { size: 0.24 })
       }
     }
 
@@ -847,6 +1020,17 @@ export class World {
       const px = CX + Math.round(Math.cos(a) * 3), pz = CZ + Math.round(Math.sin(a) * 3)
       for (let hgt = 1; hgt <= 4; hgt++) vg.add(px, ITOP + hgt, pz, hgt === 4 ? JADE_D : JADE)
     }
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2 + 0.22
+      const rx = Math.cos(a) * 4, rz = Math.sin(a) * 4
+      if (Math.hypot(rx, rz) > 4.1) continue
+      vg.add(CX + rx, ITOP + 1.5, CZ + rz, JADE_D, { size: 0.28 })
+      vg.add(CX + rx, ITOP + 1.92, CZ + rz, '#DFF6EA', { glow: true, size: 0.16 })
+    }
+    for (const [lx, lz] of [[2.4, 2.4], [-2.4, -2.4], [2.4, -2.4], [-2.4, 2.4]]) {
+      vg.add(CX + lx, ITOP + 4.35, CZ + lz, '#FFD9A0', { glow: true, size: 0.32 })
+      vg.add(CX + lx, ITOP + 4.72, CZ + lz, C.gold, { size: 0.14 })
+    }
     for (let rw = 9; rw >= 3; rw -= 2) {
       const hw = Math.floor(rw / 2)
       const ry = ITOP + 5 + (9 - rw) / 2
@@ -896,32 +1080,86 @@ export class World {
     const vg = this.islandVg
     const topY = this.surfMain.get(px + ',' + pz) ?? TOP
     this.surfMain.delete(px + ',' + pz)
-    for (let i = 1; i <= 3; i++) vg.add(px, topY + i, pz, i % 2 ? '#8A5A3B' : '#A9714B', { size: 0.9 })
-    vg.add(px + 1, topY + 3, pz, '#8A5A3B', { size: 0.6 })
-    vg.add(px - 1, topY + 3.4, pz, '#8A5A3B', { size: 0.6 })
-    const leafCols = ['#9FD88F', '#C9E89A', '#B7DF9E']
     const rng = mulberry32(808)
-    for (let i = 0; i < 30; i++) {
-      const ox = (rng() * 2 - 1) * 2, oy = (rng() * 2 - 1) * 1.2, oz = (rng() * 2 - 1) * 2
-      if ((ox / 2.3) ** 2 + (oy / 1.5) ** 2 + (oz / 2.3) ** 2 > 1) continue
-      vg.add(px + Math.round(ox), topY + 4.6 + Math.round(oy), pz + Math.round(oz),
-        leafCols[Math.floor(rng() * 3)], { size: 0.75 })
+
+    vg.add(px, topY + 0.3, pz + 1, '#6E4527', { size: 0.5 })
+    vg.add(px - 1, topY + 0.3, pz, '#6E4527', { size: 0.45 })
+    vg.add(px + 0.8, topY + 0.3, pz - 0.9, '#6E4527', { size: 0.45 })
+
+    const taper = [1.0, 0.88, 0.74]
+    for (let i = 0; i < 3; i++) vg.add(px, topY + 1 + i, pz, i % 2 ? '#A9714B' : '#8A5A3B', { size: taper[i] })
+
+    const branches = []
+    for (let a = 0; a < 4; a++) {
+      const ang = (a / 4) * Math.PI * 2 + rng() * 0.6
+      const ax = Math.round(Math.cos(ang)), az = Math.round(Math.sin(ang))
+      vg.add(px + ax, topY + 3.4, pz + az, '#8A5A3B', { size: 0.5 })
+      vg.add(px + ax * 2, topY + 4.1, pz + az * 2, '#8A5A3B', { size: 0.42 })
+      branches.push([ax * 2, az * 2])
     }
+
+    const leafCols = ['#7FC96B', '#9FD88F', '#C9E89A', '#FFD9EC']
+    const cy = topY + 5.2
+    const canopyCells = []
+    const blobs = [
+      [0, 0, 0, 2.1],
+      [1.3, 0.5, -0.9, 1.35],
+      [-1.2, 0.4, 1.0, 1.3],
+      [0.2, -0.7, 0.4, 1.2]
+    ]
+    for (const [bx, by, bz, br] of blobs) {
+      for (let i = 0; i < 26; i++) {
+        const ox = bx + (rng() * 2 - 1) * br
+        const oy = by + (rng() * 2 - 1) * br * 0.6
+        const oz = bz + (rng() * 2 - 1) * br
+        if ((ox / 2.6) ** 2 + (oy / 1.6) ** 2 + (oz / 2.6) ** 2 > 1) continue
+        const cell = [px + Math.round(ox), cy + Math.round(oy), pz + Math.round(oz), oy]
+        canopyCells.push(cell)
+        const r = rng()
+        vg.add(cell[0], cell[1], cell[2],
+          oy < -0.5 ? '#6FBF73' : leafCols[Math.floor(rng() * 4)],
+          r < 0.05
+            ? { glow: true, size: 0.7, sway: 0.45 }
+            : { size: 0.72, sway: 0.4 + rng() * 0.4, sss: 0.75 })
+      }
+    }
+
+    const lowCells = canopyCells.filter(c => c[3] < -0.2)
+    const fruitSpots = []
+    const used = new Set()
+    for (let i = 0; i < 5 && lowCells.length; i++) {
+      const c = lowCells[Math.floor(rng() * lowCells.length)]
+      const k = c[0] + ',' + c[2]
+      if (used.has(k)) continue
+      used.add(k)
+      const dx = c[0] - px, dz = c[2] - pz
+      const len = Math.max(Math.hypot(dx, dz), 0.001)
+      const fx = c[0] + (dx / len) * 0.28
+      const fz = c[2] + (dz / len) * 0.28
+      const fy = c[1] - 0.72
+      vg.add(fx, fy + 0.34, fz, '#6E8F3E', { size: 0.16 })
+      fruitSpots.push([fx, fy, fz])
+    }
+
     this.peachGroup = new THREE.Group()
     this.peachMeshes = []
-    const peachMat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color('#FFC98A').multiplyScalar(1.25), toneMapped: false
-    })
-    const spots = [[-0.9, 4.2, 0.7], [0.8, 4.6, -0.6], [0.1, 5.4, 1.1], [-0.5, 5.1, -1.2], [1.2, 5.2, 0.9]]
-    spots.forEach((s, idx) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.55), peachMat)
-      m.position.set(px + s[0], topY + s[1], pz + s[2])
+    const peachMats = ['#FFC98A', '#FFB36B', '#FF9E7A'].map(h =>
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(h).multiplyScalar(1.18), toneMapped: false })
+    )
+    const leafMat = new THREE.MeshLambertMaterial({ color: '#6FBF73' })
+    fruitSpots.forEach((s, idx) => {
+      const stem = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.1), leafMat)
+      stem.position.set(s[0], s[1] + 0.22, s[2])
+      this.peachGroup.add(stem)
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.46, 0.5), peachMats[idx % 3])
+      m.position.set(s[0], s[1], s[2])
+      m.rotation.y = idx * 0.5
       m.userData = { special: 'peach', idx }
       this.peachMeshes.push(m)
       this.peachGroup.add(m)
     })
     this.root.add(this.peachGroup)
-    this.anchors.peachTree = new THREE.Vector3(px, topY + 4.5, pz)
+    this.anchors.peachTree = new THREE.Vector3(px, cy, pz)
   }
 
   setPeachVisible(i, v) {

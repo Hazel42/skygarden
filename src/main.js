@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 
-import { VoxelSystem } from './voxel.js'
+import { VoxelSystem, voxelUniforms } from './voxel.js'
 import { World } from './world.js'
 import { Fauna } from './fauna.js'
 import { FX } from './fx.js'
@@ -17,10 +17,11 @@ import { audio } from './audio.js'
 import { createCloudSea } from './cloudsea.js'
 import { DockUI } from './dockui.js'
 import { RadialMenu } from './radial.js'
+import { cloud } from './cloud.js'
 
 const canvas = document.getElementById('scene')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75))
 renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
@@ -63,7 +64,19 @@ fauna.onDragonSpark = p => fx.spawnSpark(p, ['#BFFFE0', '#8FD8E8', '#DFF6FF'])
 fauna.onDragonCall = () => audio.dragonCall()
 
 const state = new GameState()
-const offline = state.load()
+
+function setCloudIndicator(s) {
+  const el = document.getElementById('cloudState')
+  if (!el) return
+  el.classList.remove('hidden')
+  if (s === 'sync') { el.textContent = '☁️ syncing…'; el.className = 'cloudsync' }
+  else if (s === 'on') { el.textContent = '☁️ ✓'; el.className = 'cloudon' }
+  else if (s === 'err') { el.textContent = '☁️ ⚠'; el.className = 'clouderr' }
+  else { el.classList.add('hidden') }
+}
+
+const cloudReady = cloud.init()
+setCloudIndicator('sync')
 
 const builder = new Builder(scene, world, state, {
   onPlaced(item, pos) {
@@ -73,6 +86,7 @@ const builder = new Builder(scene, world, state, {
     state.save()
   },
   onRemoved(item, pos) {
+    fx.spawnDebris(pos.clone().setY(pos.y + 0.5), '#8A5A3B', 10)
     fx.burst(pos.clone().setY(pos.y + 1), 'poof')
     audio.tap(4)
     state.save()
@@ -110,6 +124,27 @@ controls.maxPolarAngle = Math.PI * 0.495
 controls.minPolarAngle = 0.12
 controls.autoRotateSpeed = 0.45
 controls.screenSpacePanning = false
+
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+let remoteSave = null
+try {
+  const ok = await Promise.race([cloudReady, sleep(2600).then(() => false)])
+  if (ok) remoteSave = await Promise.race([cloud.pull(), sleep(2500).then(() => null)])
+} catch (e) { }
+const localRaw = state.readLocalRaw()
+if (remoteSave && (!localRaw || (remoteSave.last || 0) > (localRaw.last || 0))) {
+  state.adoptRemote(remoteSave)
+}
+setCloudIndicator(cloud.ok ? 'on' : '')
+const offline = state.load()
+if (offline && offline.gained >= 1) {
+  setTimeout(() => {
+    const el = document.getElementById('introLoad')
+    if (el) el.textContent = `☁️ +${fmt(offline.gained)} essence gathered while away`
+  }, 100)
+}
+const introLoad = document.getElementById('introLoad')
+if (introLoad) introLoad.textContent = cloud.ok ? '☁️ cloud save connected' : '🌿 garden ready — offline mode'
 
 let started = false
 let lastInteract = performance.now()
@@ -233,6 +268,27 @@ const ui = new UI(state, {
     } else {
       doc.exitFullscreen?.().catch(() => { })
     }
+  },
+  onExport() {
+    const raw = state.exportSave()
+    if (!raw) { ui.toast('⚠️ Could not read save'); return }
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(raw)
+        .then(() => ui.toast('📋 Save copied to clipboard — keep it safe!'))
+        .catch(() => { prompt('Copy your save string:', raw) })
+    } else {
+      prompt('Copy your save string:', raw)
+    }
+  },
+  onImport() {
+    const str = prompt('Paste your save string:')
+    if (!str) return
+    if (state.importSave(str)) {
+      ui.toast('💾 Save imported — reloading…')
+      setTimeout(() => location.reload(), 700)
+    } else {
+      ui.toast('⚠️ Invalid save string')
+    }
   }
 })
 
@@ -256,6 +312,10 @@ const radial = new RadialMenu(key => {
 
 fauna.onGoldenStart = () => audio.chime(0.1)
 world.onLanternReleased = () => audio.chime(0.06)
+
+document.addEventListener('pointerdown', e => {
+  if (radial.isOpen && !e.target.closest?.('#radial')) radial.close()
+}, true)
 
 function applyUnlock(id, lvl) {
   switch (id) {
@@ -359,6 +419,13 @@ state.on('levelup', ({ lvl, reward }) => {
   if (lvl >= 2) ui.setBuildVisible(true)
 })
 
+state.on('achievement', ({ a, reward }) => {
+  audio.unlock()
+  ui.showBanner(`🏆 ${a.name}`, `${a.desc} · +${fmt(reward)} ✨`)
+  ui.pulseCounter()
+  ui.renderQuests()
+})
+
 if (state.lvl('rain') > 0) ui.setRainVisible(true)
 ui.setRainOn(fx.rainActive)
 if (state.gLevel >= 2) ui.setBuildVisible(true)
@@ -401,8 +468,87 @@ function collectHitTargets() {
     if (L.g.visible && !L.busy) list.push(...L.g.children)
   }
   if (fauna.goldenG.visible) list.push(...fauna.goldenG.children)
+  if (fauna.fox.visible) list.push(...fauna.fox.children)
+  if (wishStar.g.visible && wishStar.state === 'landed') list.push(...wishStar.g.children)
   list.push(world.water)
   return list
+}
+
+const wishStar = { g: null, state: 'idle', timer: 40, landedT: 0, trailT: 0 }
+{
+  const g = new THREE.Group()
+  const star = new THREE.Mesh(
+    new THREE.BoxGeometry(0.55, 0.55, 0.55),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color('#FFF0B8').multiplyScalar(1.35), toneMapped: false })
+  )
+  const halo = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 0.9, 0.9),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color('#FFF6D8').multiplyScalar(0.9), toneMapped: false, transparent: true, opacity: 0.4 })
+  )
+  g.add(star, halo)
+  g.traverse(o => { if (o.isMesh) o.userData.special = 'wish' })
+  g.visible = false
+  scene.add(g)
+  wishStar.g = g
+}
+
+function startWishStar() {
+  const keys = [...world.surfMain.keys()]
+  if (!keys.length) { wishStar.timer = 30; return }
+  const k = keys[(Math.random() * keys.length) | 0]
+  const [sx, sz] = k.split(',').map(Number)
+  const ty = world.surfMain.get(k)
+  wishStar.g.position.set(sx, ty + 30, sz)
+  wishStar.g.visible = true
+  wishStar.state = 'falling'
+  audio.chime(0.08)
+  gsap.to(wishStar.g.position, {
+    y: ty + 0.75, duration: 1.5, ease: 'power2.in',
+    onComplete: () => {
+      wishStar.state = 'landed'
+      wishStar.landedT = 12
+      fx.burst(wishStar.g.position.clone(), 'celebrate')
+    }
+  })
+}
+
+function collectWish(screenX, screenY) {
+  const amt = Math.max(state.passive * 50, state.tapValue * 100, 300)
+  state.essence += amt
+  state.totalEarned += amt
+  state.allTime += amt
+  state.runEarned += amt
+  state.questEvent('collect', amt)
+  state.addXp(10)
+  fx.burst(wishStar.g.position.clone(), 'celebrate')
+  fx.spawnDebris(wishStar.g.position, '#FFF0B8', 8)
+  audio.unlock()
+  ui.floater(screenX, screenY, '🌠 +' + fmt(amt), 'gold')
+  ui.toast('🌠 Wish granted by the falling star!')
+  wishStar.g.visible = false
+  wishStar.state = 'idle'
+  wishStar.timer = 50 + Math.random() * 40
+}
+
+let lastPetFox = 0
+function petFox(screenX, screenY) {
+  const now = Date.now()
+  if (now - lastPetFox < 15000) {
+    ui.toast('🦊 The fox is purring contentedly…')
+    return
+  }
+  lastPetFox = now
+  const amt = Math.max(state.passive * 8, state.tapValue * 20, 40)
+  state.essence += amt
+  state.totalEarned += amt
+  state.allTime += amt
+  state.runEarned += amt
+  fauna.foxHop()
+  const p = fauna.fox.position.clone().setY(fauna.fox.position.y + 1)
+  fx.burst(p, 'tap')
+  audio.pluck(392, 0.05)
+  setTimeout(() => audio.pluck(523.25, 0.04), 110)
+  ui.floater(screenX, screenY, '💗 +' + fmt(amt), 'pink')
 }
 
 const goldenTrailT = { v: 0 }
@@ -416,6 +562,7 @@ function rewardGolden(screenX, screenY) {
   state.questEvent('collect', amt)
   state.addXp(20)
   const p = fauna.goldenG.position.clone()
+  fx.spawnDebris(p, '#FFD27A', 10)
   fx.burst(p, 'celebrate')
   fx.burst(p.clone().setY(p.y + 1), 'gold')
   audio.unlock()
@@ -454,6 +601,7 @@ function harvestPeach(idx, screenX, screenY) {
   state.runEarned += amt
   state.questEvent('harvests')
   const pos = world.peachMeshes[idx].position
+  fx.spawnDebris(pos, '#FF9E7A', 12)
   fx.burst(pos.clone(), 'gold')
   fx.burst(pos.clone().setY(pos.y + 0.5), 'poof')
   audio.chime(0.12)
@@ -518,6 +666,15 @@ canvas.addEventListener('pointerup', e => {
     if (!builder.active && !ui.removing) controls.enableRotate = true
     return
   }
+  if (ui.anyPanelOpen()) {
+    ndc.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1)
+    raycaster.setFromCamera(ndc, camera)
+    const dockHits = raycaster.intersectObjects(world.dockMeshes || [], false)
+    if (!dockHits.length) {
+      ui.closeEverything()
+      return
+    }
+  }
   handleTap(e.clientX, e.clientY)
 })
 canvas.addEventListener('contextmenu', e => {
@@ -552,6 +709,14 @@ function handleTap(x, y) {
     }
     if (obj.userData?.special === 'lantern') {
       releaseLantern(obj.userData.idx, x, y)
+      return
+    }
+    if (obj.userData?.special === 'fox') {
+      petFox(x, y)
+      return
+    }
+    if (obj.userData?.special === 'wish') {
+      collectWish(x, y)
       return
     }
     if (obj.userData?.special === 'peach') {
@@ -609,15 +774,57 @@ document.addEventListener('touchmove', e => {
   if (e.target === canvas) e.preventDefault()
 }, { passive: false })
 
-window.addEventListener('beforeunload', () => { if (started) state.save() })
+window.addEventListener('beforeunload', () => {
+  if (started) {
+    state.save()
+    pushCloud()
+  }
+})
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && started) state.save()
-  else audio.resume()
+  if (document.hidden && started) {
+    state.save()
+    pushCloud()
+  } else audio.resume()
 })
 
 const clock = new THREE.Clock()
+const NIGHT_TINT = new THREE.Color(0.62, 0.7, 0.88)
 let uiAcc = 0
 let saveAcc = 0
+let achAcc = 0
+let cloudAcc = 0
+let lastCloudStr = ''
+
+renderer.compile(scene, camera)
+
+const quality = { lvl: 2, t: 0, frames: 0, low: 0, high: 0, last: 0 }
+function applyQuality(l) {
+  quality.lvl = l
+  if (l === 2) {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75))
+    bloom.enabled = true
+  } else if (l === 1) {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2))
+    bloom.enabled = false
+  } else {
+    renderer.setPixelRatio(1)
+    bloom.enabled = false
+    sunLight.castShadow = false
+    renderer.shadowMap.enabled = false
+    scene.traverse(o => { if (o.material) o.material.needsUpdate = true })
+  }
+  applyResize()
+}
+
+async function pushCloud() {
+  if (!cloud.ok || !started) return
+  const obj = state.serialize()
+  const str = JSON.stringify(obj)
+  if (str === lastCloudStr) return
+  lastCloudStr = str
+  const okPush = await cloud.push(obj)
+  ui.setCloudState(okPush ? 'on' : 'err')
+}
 
 function animate() {
   requestAnimationFrame(animate)
@@ -626,6 +833,14 @@ function animate() {
 
   state.tick(dt)
   const env = daynight.update(dt, tGlob)
+
+  const U = voxelUniforms
+  U.uTime.value = tGlob
+  U.uSunDir.value.copy(sunLight.position).normalize()
+  U.uSunColor.value.copy(sunLight.color).multiplyScalar(sunLight.intensity)
+  U.uNight.value = env.nf
+  U.uTint.value.setRGB(1, 1, 1).lerp(NIGHT_TINT, env.nf * 0.55)
+
   world.update(dt, tGlob)
   cloudSea.update(dt)
   cloudSea.setNight(env.nf)
@@ -639,6 +854,29 @@ function animate() {
     if (goldenTrailT.v <= 0) {
       goldenTrailT.v = 0.14
       fx.spawnSpark(fauna.goldenG.position, ['#FFE29A', '#FFF6D8', '#FFD27A'])
+    }
+  }
+  if (started && wishStar.state === 'idle') {
+    wishStar.timer -= dt
+    if (wishStar.timer <= 0) {
+      if (env.nf > 0.55) startWishStar()
+      else wishStar.timer = 15
+    }
+  } else if (wishStar.state === 'falling') {
+    wishStar.trailT -= dt
+    if (wishStar.trailT <= 0) {
+      wishStar.trailT = 0.05
+      fx.spawnSpark(wishStar.g.position, ['#FFF0B8', '#FFFFFF'])
+    }
+  } else if (wishStar.state === 'landed') {
+    wishStar.landedT -= dt
+    wishStar.g.rotation.y += dt * 2
+    const pulse = 1 + Math.sin(tGlob * 5) * 0.12
+    wishStar.g.scale.setScalar(pulse)
+    if (wishStar.landedT <= 0) {
+      wishStar.g.visible = false
+      wishStar.state = 'idle'
+      wishStar.timer = 50 + Math.random() * 40
     }
   }
   for (let i = 0; i < peachRespawn.length; i++) {
@@ -657,9 +895,34 @@ function animate() {
   composer.render()
 
   uiAcc += dt
-  if (uiAcc > 0.12) { ui.refresh(); uiAcc = 0 }
+  if (uiAcc > 0.2) { ui.refresh(); uiAcc = 0 }
+  achAcc += dt
+  if (achAcc > 2) { state.checkAchievements(); achAcc = 0 }
   saveAcc += dt
   if (saveAcc > 5 && started) { state.save(); ui.flashSaved(); saveAcc = 0 }
+  cloudAcc += dt
+  if (cloudAcc > 20) { pushCloud(); cloudAcc = 0 }
+
+  quality.t += dt
+  quality.frames++
+  if (quality.t >= 2) {
+    const fps = quality.frames / quality.t
+    quality.t = 0
+    quality.frames = 0
+    if (fps < 40) { quality.low++; quality.high = 0 }
+    else if (fps > 56) { quality.high++; quality.low = 0 }
+    else { quality.low = 0; quality.high = 0 }
+    const now = performance.now()
+    if (quality.low >= 2 && quality.lvl > 0 && now - quality.last > 4000) {
+      applyQuality(quality.lvl - 1)
+      quality.last = now
+      quality.low = 0
+    } else if (quality.high >= 4 && quality.lvl < 2 && now - quality.last > 12000) {
+      applyQuality(quality.lvl + 1)
+      quality.last = now
+      quality.high = 0
+    }
+  }
 }
 
 animate()

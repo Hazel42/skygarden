@@ -34,6 +34,23 @@ export const LEVEL_UNLOCKS = {
   10: '🐉 AZURE CELESTIAL DRAGON'
 }
 
+export const ACHIEVEMENTS = [
+  { id: 'tap1', icon: '🌸', name: 'First Touch', desc: 'Tap the garden', check: s => s.taps >= 1 },
+  { id: 'tap100', icon: '🤲', name: 'Gentle Hands', desc: 'Tap 100 times', check: s => s.taps >= 100 },
+  { id: 'tap1k', icon: '🧑‍🌾', name: 'Gardener Soul', desc: 'Tap 1,000 times', check: s => s.taps >= 1000 },
+  { id: 'earn10k', icon: '✨', name: 'Spirit Gatherer', desc: 'Collect 10K essence', check: s => s.allTime >= 1e4 },
+  { id: 'earn10m', icon: '💎', name: 'Essence Baron', desc: 'Collect 10M essence', check: s => s.allTime >= 1e7 },
+  { id: 'earn1b', icon: '🏛️', name: 'Celestial Treasury', desc: 'Collect 1B essence', check: s => s.allTime >= 1e9 },
+  { id: 'build5', icon: '🔨', name: 'Landscaper', desc: 'Place 5 creations', check: s => s.placements.length >= 5 },
+  { id: 'build15', icon: '🏗️', name: 'Master Gardener', desc: 'Place 15 creations', check: s => s.placements.length >= 15 },
+  { id: 'lv10', icon: '🌱', name: 'Rising Star', desc: 'Reach garden Lv 10', check: s => s.gLevel >= 10 },
+  { id: 'asc1', icon: '✧', name: 'First Ascension', desc: 'Ascend once', check: s => s.ascensions >= 1 },
+  { id: 'star5', icon: '⭐', name: 'Starry Soul', desc: 'Own 5 Immortal Stars', check: s => s.stars >= 5 },
+  { id: 'phoenix', icon: '🔥', name: 'Firebird Friend', desc: 'Awaken the Phoenix', check: s => (s.levels.phoenix || 0) >= 1 },
+  { id: 'dragon', icon: '🐉', name: 'Dragon Rider', desc: 'Awaken the Azure Dragon', check: s => (s.levels.dragon || 0) >= 1 },
+  { id: 'isles', icon: '🗺️', name: 'Archipelago', desc: 'Unlock all 4 outer isles', check: s => s.levels.bridge > 0 && s.levels.jade > 0 && s.levels.lotusisle > 0 && s.levels.starpeak > 0 }
+]
+
 const U_BY_ID = Object.fromEntries(UPGRADES.map(u => [u.id, u]))
 const SAVE_KEY = 'sakura-sky-garden-v1'
 
@@ -65,6 +82,7 @@ export class GameState {
     this.buffUntil = 0
     this.counters = { collected: 0, taps: 0, placed: 0, buys: 0, harvests: 0 }
     this.quests = []
+    this.ach = {}
     this.tapValue = 1
     this.passive = 0
     this.recalc()
@@ -174,6 +192,37 @@ export class GameState {
     return q.reward
   }
 
+  checkAchievements() {
+    for (let i = 0; i < ACHIEVEMENTS.length; i++) {
+      const a = ACHIEVEMENTS[i]
+      if (this.ach[a.id]) continue
+      let ok = false
+      try { ok = a.check(this) } catch (e) { }
+      if (!ok) continue
+      this.ach[a.id] = true
+      const reward = Math.round(300 * Math.pow(2.1, i))
+      this.essence += reward
+      this.totalEarned += reward
+      this.allTime += reward
+      this.runEarned += reward
+      this.emit('achievement', { a, reward })
+    }
+  }
+
+  exportSave() {
+    this.save()
+    try { return localStorage.getItem(SAVE_KEY) } catch (e) { return null }
+  }
+
+  importSave(str) {
+    try {
+      const d = JSON.parse(str)
+      if (typeof d.e !== 'number' || typeof d.l !== 'object') return false
+      localStorage.setItem(SAVE_KEY, JSON.stringify(d))
+      return true
+    } catch (e) { return false }
+  }
+
   addXp(n) {
     this.xp += n
     while (this.xp >= this.xpNeed(this.gLevel + 1)) {
@@ -252,28 +301,44 @@ export class GameState {
     this.recalc()
   }
 
+  serialize() {
+    return {
+      e: this.essence,
+      t: this.totalEarned,
+      tp: this.taps,
+      l: this.levels,
+      m: this.muted,
+      r: this.rainOn,
+      x: this.xp,
+      g: this.gLevel,
+      pl: this.placements,
+      st: this.stars,
+      ac: this.ascensions,
+      at: this.allTime,
+      re: this.runEarned,
+      bu: this.buffUntil,
+      qc: this.counters,
+      qs: this.quests,
+      ah: this.ach,
+      last: Date.now()
+    }
+  }
+
   save() {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({
-        e: this.essence,
-        t: this.totalEarned,
-        tp: this.taps,
-        l: this.levels,
-        m: this.muted,
-        r: this.rainOn,
-        x: this.xp,
-        g: this.gLevel,
-        pl: this.placements,
-        st: this.stars,
-        ac: this.ascensions,
-        at: this.allTime,
-        re: this.runEarned,
-        bu: this.buffUntil,
-        qc: this.counters,
-        qs: this.quests,
-        last: Date.now()
-      }))
+      localStorage.setItem(SAVE_KEY, JSON.stringify(this.serialize()))
     } catch (e) { }
+  }
+
+  readLocalRaw() {
+    try {
+      const d = JSON.parse(localStorage.getItem(SAVE_KEY))
+      return d || null
+    } catch (e) { return null }
+  }
+
+  adoptRemote(obj) {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(obj)) } catch (e) { }
   }
 
   load() {
@@ -296,6 +361,7 @@ export class GameState {
     this.buffUntil = data.bu || 0
     if (data.qc) this.counters = { ...this.counters, ...data.qc }
     this.quests = Array.isArray(data.qs) ? data.qs : []
+    this.ach = data.ah || {}
     this.ensureQuests()
     this.recalc()
     const awaySecs = data.last ? Math.min((Date.now() - data.last) / 1000, 8 * 3600) : 0

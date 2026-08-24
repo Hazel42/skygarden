@@ -253,6 +253,20 @@ body {
 #buildPanel::-webkit-scrollbar { width: 6px; }
 #buildPanel::-webkit-scrollbar-thumb { background: rgba(140,110,170,.35); border-radius: 4px; }
 .bphead { font-weight: 700; color: #5f4680; font-size: 15px; margin: 2px 4px 10px; }
+.phead {
+  display: flex; align-items: center; justify-content: space-between;
+  font-weight: 700; color: #5f4680; font-size: 15px;
+  margin: 2px 4px 10px;
+}
+.pclose {
+  width: 30px; height: 30px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.6);
+  background: rgba(255,255,255,.55); color: #8a6aa8;
+  font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+  transition: transform .12s, background .2s;
+}
+.pclose:hover { transform: scale(1.1); background: #ffd9e4; color: #b04f6e; }
+#helpPanel .pclose { position: absolute; top: 10px; right: 10px; }
 #slotsInfo { margin: 4px 6px 8px; }
 .bprows { display: flex; gap: 8px; margin-top: 4px; }
 .mini {
@@ -282,6 +296,17 @@ body {
   opacity: 0; transition: opacity .5s; pointer-events: none !important;
 }
 #saveFlash.show { opacity: .85; }
+
+#introLoad {
+  color: #c9b8e0; font-size: 12.5px; letter-spacing: 1px;
+  min-height: 18px;
+}
+.cloudsync, .cloudon, .clouderr {
+  font-size: 10.5px; font-weight: 700; opacity: .8;
+}
+.cloudsync { color: #b9a8d8; }
+.cloudon { color: #7cc9a8; }
+.clouderr { color: #e8a8a8; }
 #banner.show { opacity: 1; transform: translateX(-50%) scale(1); }
 #banner .bt {
   font-size: 26px; font-weight: 700; color: #fff;
@@ -314,6 +339,24 @@ body {
 .quest .qbar div { height: 100%; background: linear-gradient(90deg,#ffd08a,#ff9ec0); border-radius: 999px; transition: width .3s; }
 .quest.done .qbar div { background: linear-gradient(90deg,#9be8a8,#7cc9ff); }
 .cb.claimable { background: linear-gradient(130deg,#c9f3d4,#bfe0ff); animation: hintPulse 1.6s infinite; }
+
+#achGrid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  margin: 4px 6px 8px;
+}
+.ach {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; border-radius: 10px;
+  background: rgba(255,255,255,.32); border: 1px solid rgba(255,255,255,.4);
+  font-size: 10.5px; font-weight: 700; color: #9a8ab0;
+  overflow: hidden; white-space: nowrap;
+}
+.ach .ai { font-size: 13px; }
+.ach.done {
+  background: linear-gradient(130deg, #fff3c9, #ffd9ec);
+  border-color: rgba(255,210,140,.6);
+  color: #9a6a1e;
+}
 
 .buffpill, #buffPill {
   background: linear-gradient(120deg,#ffd9a8,#ffb9a0);

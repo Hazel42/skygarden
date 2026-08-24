@@ -128,6 +128,24 @@ export class FX {
     this.smokeAnchor = null
     this.smokeAcc = 0
 
+    this.debrisGeo = new THREE.BoxGeometry(0.17, 0.17, 0.17)
+    this.debrisMat = new THREE.MeshLambertMaterial({})
+    this.debris = new THREE.InstancedMesh(this.debrisGeo, this.debrisMat, 96)
+    this.debris.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+    this.debris.frustumCulled = false
+    this.debrisData = Array.from({ length: 96 }, () => ({
+      life: 0, x: 0, y: -999, z: 0, vx: 0, vy: 0, vz: 0, rx: 0, ry: 0, sr: 0, sc: 1
+    }))
+    const white = new THREE.Color(1, 1, 1)
+    for (let i = 0; i < 96; i++) this.debris.setColorAt(i, white)
+    scene.add(this.debris)
+    this.debrisCursor = 0
+    this._dm = new THREE.Matrix4()
+    this._dq = new THREE.Quaternion()
+    this._dp = new THREE.Vector3()
+    this._ds = new THREE.Vector3()
+    this._de = new THREE.Euler()
+
     this.ripples = []
     const rGeo = new THREE.RingGeometry(0.82, 1, 44)
     for (let i = 0; i < 12; i++) {
@@ -213,6 +231,55 @@ export class FX {
     this.smokeAnchor = anchor
   }
 
+  spawnDebris(pos, hex, n = 10) {
+    const col = new THREE.Color(hex)
+    for (let i = 0; i < n; i++) {
+      const idx = this.debrisCursor
+      this.debrisCursor = (this.debrisCursor + 1) % 96
+      const d = this.debrisData[idx]
+      d.life = 0.8 + Math.random() * 0.5
+      d.max = d.life
+      d.x = pos.x + (Math.random() - 0.5) * 0.5
+      d.y = pos.y + Math.random() * 0.4
+      d.z = pos.z + (Math.random() - 0.5) * 0.5
+      d.vx = (Math.random() - 0.5) * 3.4
+      d.vy = 2 + Math.random() * 3
+      d.vz = (Math.random() - 0.5) * 3.4
+      d.rx = Math.random() * 6
+      d.ry = Math.random() * 6
+      d.sr = (Math.random() - 0.5) * 9
+      d.sc = 0.7 + Math.random() * 0.7
+      this.debris.setColorAt(idx, col)
+    }
+    if (this.debris.instanceColor) this.debris.instanceColor.needsUpdate = true
+  }
+
+  _updateDebris(dt) {
+    const D = this.debrisData
+    let any = false
+    for (let i = 0; i < 96; i++) {
+      const d = D[i]
+      if (d.life <= 0) continue
+      any = true
+      d.life -= dt
+      d.vy -= 12 * dt
+      d.x += d.vx * dt
+      d.y += d.vy * dt
+      d.z += d.vz * dt
+      d.rx += d.sr * dt
+      d.ry += d.sr * 0.7 * dt
+      const k = Math.max(d.life / d.max, 0)
+      const sc = d.sc * Math.min(1, k * 2.2)
+      this._dp.set(d.x, d.y, d.z)
+      this._de.set(d.rx, d.ry, 0)
+      this._dq.setFromEuler(this._de)
+      this._ds.setScalar(d.life > 0 ? sc : 0.0001)
+      this._dm.compose(this._dp, this._dq, this._ds)
+      this.debris.setMatrixAt(i, this._dm)
+    }
+    if (any) this.debris.instanceMatrix.needsUpdate = true
+  }
+
   update(dt, t, env) {
     this.t = t
     this.petals.update(dt, t, env)
@@ -238,6 +305,7 @@ export class FX {
       }
     }
     this.smoke.update(dt, t, env)
+    this._updateDebris(dt)
 
     const wantAmbient = this.sakuraLevel > 0 ? 230 : 80
     let live = 0
