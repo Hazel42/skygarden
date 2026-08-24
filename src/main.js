@@ -139,20 +139,6 @@ function syncWorldToState() {
 syncWorldToState()
 builder.loadList(state.placements)
 
-const dock = new DockUI()
-dock.register('upgrades', world.anchors.dock_upgrades)
-dock.register('build', world.anchors.dock_build)
-dock.register('quests', world.anchors.dock_quests)
-ui.attachDock(dock, null, camera)
-
-const radial = new RadialMenu(key => {
-  if (key === 'upgrades') ui.toggleUpgrades()
-  else if (key === 'build') ui.toggleBuild()
-  else if (key === 'tasks') ui.toggleQuests()
-  else if (key === 'photo') ui.togglePhoto()
-  else if (key === 'help') ui.toggleHelp()
-})
-
 const ui = new UI(state, {
   onIntro() {
     started = true
@@ -239,8 +225,37 @@ const ui = new UI(state, {
   onReset() {
     state.reset()
     location.reload()
+  },
+  onFullscreen() {
+    const doc = document
+    if (!doc.fullscreenElement) {
+      doc.documentElement.requestFullscreen?.().catch(() => { })
+    } else {
+      doc.exitFullscreen?.().catch(() => { })
+    }
   }
 })
+
+document.addEventListener('fullscreenchange', () => {
+  ui.syncFullscreen(!!document.fullscreenElement)
+})
+
+const dock = new DockUI()
+dock.register('upgrades', world.anchors.dock_upgrades)
+dock.register('build', world.anchors.dock_build)
+dock.register('quests', world.anchors.dock_quests)
+ui.attachDock(dock, null, camera)
+
+const radial = new RadialMenu(key => {
+  if (key === 'upgrades') ui.toggleUpgrades()
+  else if (key === 'build') ui.toggleBuild()
+  else if (key === 'tasks') ui.toggleQuests()
+  else if (key === 'photo') ui.togglePhoto()
+  else if (key === 'help') ui.toggleHelp()
+})
+
+fauna.onGoldenStart = () => audio.chime(0.1)
+world.onLanternReleased = () => audio.chime(0.06)
 
 function applyUnlock(id, lvl) {
   switch (id) {
@@ -357,6 +372,10 @@ window.addEventListener('keydown', e => {
     else if (builder.active || ui.removing) ui.closeBuild()
   } else if (e.code === 'KeyR' && builder.active) {
     builder.rotate()
+  } else if (e.code === 'KeyF' && !e.repeat && e.target === document.body) {
+    const doc = document
+    if (!doc.fullscreenElement) doc.documentElement.requestFullscreen?.().catch(() => { })
+    else doc.exitFullscreen?.().catch(() => { })
   }
 })
 
@@ -378,8 +397,46 @@ function collectHitTargets() {
   if (world.jadeRevealed && world.jadeVg) grab(world.jadeVg)
   if (world.peachGroup) list.push(...world.peachMeshes.filter(m => m.visible))
   if (world.dockMeshes) list.push(...world.dockMeshes)
+  for (const L of world.lanterns) {
+    if (L.g.visible && !L.busy) list.push(...L.g.children)
+  }
+  if (fauna.goldenG.visible) list.push(...fauna.goldenG.children)
   list.push(world.water)
   return list
+}
+
+const goldenTrailT = { v: 0 }
+
+function rewardGolden(screenX, screenY) {
+  const amt = Math.max(state.passive * 90, state.tapValue * 150, 400)
+  state.essence += amt
+  state.totalEarned += amt
+  state.allTime += amt
+  state.runEarned += amt
+  state.questEvent('collect', amt)
+  state.addXp(20)
+  const p = fauna.goldenG.position.clone()
+  fx.burst(p, 'celebrate')
+  fx.burst(p.clone().setY(p.y + 1), 'gold')
+  audio.unlock()
+  ui.floater(screenX, screenY, '🍀 +' + fmt(amt), 'gold')
+  ui.toast('🍀 The Golden Butterfly King blesses your garden!')
+  ui.pulseCounter()
+  fauna.hideGolden()
+}
+
+function releaseLantern(idx, screenX, screenY) {
+  const L = world.lanterns[idx]
+  if (!world.releaseLantern(idx)) return
+  const amt = Math.max(state.passive * 12, state.tapValue * 25, 60)
+  state.essence += amt
+  state.totalEarned += amt
+  state.allTime += amt
+  state.runEarned += amt
+  state.questEvent('collect', amt)
+  fx.burst(L.g.position.clone(), 'gold')
+  audio.chime(0.1)
+  ui.floater(screenX, screenY, '+' + fmt(amt), 'gold')
 }
 let hitTargets = collectHitTargets()
 
@@ -489,6 +546,14 @@ function handleTap(x, y) {
       audio.chime(0.09)
       return
     }
+    if (obj.userData?.special === 'golden') {
+      rewardGolden(x, y)
+      return
+    }
+    if (obj.userData?.special === 'lantern') {
+      releaseLantern(obj.userData.idx, x, y)
+      return
+    }
     if (obj.userData?.special === 'peach') {
       harvestPeach(obj.userData.idx, x, y)
       return
@@ -525,13 +590,24 @@ function handleTap(x, y) {
   if (tapCountForHint === 10) ui.hideHint()
 }
 
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight
+function applyResize() {
+  const w = window.innerWidth
+  const h = window.innerHeight
+  camera.aspect = w / h
   camera.updateProjectionMatrix()
-  renderer.setSize(window.innerWidth, window.innerHeight)
-  composer.setSize(window.innerWidth, window.innerHeight)
-  bloom.resolution.set(window.innerWidth / 2, window.innerHeight / 2)
-})
+  renderer.setSize(w, h)
+  composer.setSize(w, h)
+}
+
+window.addEventListener('resize', applyResize)
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', () => setTimeout(applyResize, 60))
+}
+document.addEventListener('fullscreenchange', () => setTimeout(applyResize, 80))
+
+document.addEventListener('touchmove', e => {
+  if (e.target === canvas) e.preventDefault()
+}, { passive: false })
 
 window.addEventListener('beforeunload', () => { if (started) state.save() })
 document.addEventListener('visibilitychange', () => {
@@ -558,6 +634,13 @@ function animate() {
   dock.update()
 
   fx.setIncense(state.buffActive() ? world.anchors.incense : null)
+  if (fauna.goldenG.visible) {
+    goldenTrailT.v -= dt
+    if (goldenTrailT.v <= 0) {
+      goldenTrailT.v = 0.14
+      fx.spawnSpark(fauna.goldenG.position, ['#FFE29A', '#FFF6D8', '#FFD27A'])
+    }
+  }
   for (let i = 0; i < peachRespawn.length; i++) {
     if (peachRespawn[i] > 0) {
       peachRespawn[i] -= dt
@@ -576,7 +659,7 @@ function animate() {
   uiAcc += dt
   if (uiAcc > 0.12) { ui.refresh(); uiAcc = 0 }
   saveAcc += dt
-  if (saveAcc > 5 && started) { state.save(); saveAcc = 0 }
+  if (saveAcc > 5 && started) { state.save(); ui.flashSaved(); saveAcc = 0 }
 }
 
 animate()

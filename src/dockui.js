@@ -42,7 +42,7 @@ export class DockUI {
     const h = el.offsetHeight || 380
     let x = sx < window.innerWidth / 2 ? sx + 42 : sx - w - 42
     x = Math.max(10, Math.min(window.innerWidth - w - 10, x))
-    let y = Math.max(74, Math.min(window.innerHeight - h - 96, sy - h / 2))
+    let y = Math.max(74, Math.min(window.innerHeight - h - 118, sy - h / 2))
     el.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`
   }
 }

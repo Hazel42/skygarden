@@ -4,9 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>🏮 Sakura Sky Garden</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏮</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
   <canvas id="scene"></canvas>
@@ -19,11 +21,12 @@
       <div class="rate"><span id="rateVal">+0/s</span><span>·</span><span id="tapVal">tap +1</span></div>
     </div>
 
-    <div id="topRight">
+    <div id="topRight" class="panel">
       <button id="btnSound" class="iconbtn" title="Sound">🔊</button>
       <button id="btnTime" class="iconbtn" title="Time flow">1×</button>
       <button id="btnPhoto" class="iconbtn photo-exempt" title="Photo mode">📷</button>
-      <button id="btnHelp" class="iconbtn" title="Help">?</button>
+      <button id="btnFull" class="iconbtn" title="Fullscreen (F)">⛶</button>
+      <button id="btnHelp" class="iconbtn" title="Help & stats">?</button>
     </div>
 
     <div id="helpPanel" class="panel hidden">
@@ -60,14 +63,42 @@
       <div class="dim" style="margin:4px 6px">New tasks appear after claiming</div>
     </div>
 
+    <div id="gamebar">
+      <button id="btnUpgrades" class="gbtn" title="Blessings shop">
+        <span class="gi">✨</span><span class="gl">Blessings</span>
+      </button>
+      <button id="btnBuild" class="gbtn hidden" title="Build mode">
+        <span class="gi">🔨</span><span class="gl">Build</span>
+      </button>
+      <button id="btnQuests" class="gbtn" title="Garden tasks">
+        <span class="gi">📜</span><span class="gl">Tasks</span>
+      </button>
+      <span class="gsep"></span>
+      <button id="rainBtn" class="gbtn hidden" title="Toggle rain">
+        <span class="gi">🌧️</span><span class="gl">Rain</span>
+      </button>
+      <button id="btnSound" class="gbtn" title="Sound">
+        <span class="gi">🔊</span><span class="gl">Sound</span>
+      </button>
+      <button id="btnTime" class="gbtn" title="Time flow">
+        <span class="gi" id="timeVal">1×</span><span class="gl">Time</span>
+      </button>
+      <button id="btnPhoto" class="gbtn photo-exempt" title="Photo mode">
+        <span class="gi">📷</span><span class="gl">Photo</span>
+      </button>
+      <button id="btnFull" class="gbtn" title="Fullscreen (F)">
+        <span class="gi" id="fullVal">⛶</span><span class="gl">Full</span>
+      </button>
+      <button id="btnHelp" class="gbtn" title="Help & stats">
+        <span class="gi">?</span><span class="gl">Help</span>
+      </button>
+    </div>
+
     <div id="banner"><div class="bt"></div><div class="bs"></div></div>
 
-    <button id="rainBtn" class="pillbtn hidden">🌧️ Rain</button>
-    <button id="btnQuests" class="pillbtn">📜 Tasks</button>
-    <button id="btnBuild" class="pillbtn hidden">🔨 Build</button>
-    <button id="btnUpgrades" class="pillbtn">✨ Upgrades</button>
     <div id="hint" class="pillbtn hidden">✧ tap the garden to gather essence ✧</div>
     <div id="toast" style="opacity:0"></div>
+    <div id="saveFlash">✓ saved</div>
     <div id="floaters"></div>
   </div>
 

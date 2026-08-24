@@ -580,12 +580,34 @@ export class World {
         y: 13 + rng() * 9,
         spd: (0.014 + rng() * 0.02) * (rng() < 0.5 ? 1 : -1),
         ph: rng() * Math.PI * 2,
-        spin: 0.2 + rng() * 0.3
+        spin: 0.2 + rng() * 0.3,
+        busy: false
       }
+      g.traverse(o => {
+        if (o.isMesh) { o.userData.special = 'lantern'; o.userData.idx = i }
+      })
       this.lanterns.push(rec)
       this.root.add(g)
     }
     this.setLanternCount(5)
+  }
+
+  releaseLantern(i) {
+    const L = this.lanterns[i]
+    if (!L || L.busy || !L.g.visible) return false
+    L.busy = true
+    const startPos = L.g.position.clone()
+    gsap.to(L.g.position, {
+      y: L.y + 15, duration: 2.4, ease: 'power1.in',
+      onComplete: () => {
+        L.ang = Math.random() * Math.PI * 2
+        L.rad = 19 + Math.random() * 7
+        L.g.position.set(Math.cos(L.ang) * L.rad, L.y, Math.sin(L.ang) * L.rad)
+        L.busy = false
+        if (this.onLanternReleased) this.onLanternReleased(startPos)
+      }
+    })
+    return true
   }
 
   setLanternCount(n) {
@@ -952,6 +974,7 @@ export class World {
 
   update(dt, t) {
     for (const L of this.lanterns) {
+      if (L.busy) continue
       L.ang += L.spd * dt
       L.g.position.set(
         Math.cos(L.ang) * L.rad,

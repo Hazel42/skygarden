@@ -287,6 +287,31 @@ function makeRabbit() {
   return g
 }
 
+function makeGoldenButterfly() {
+  const g = new THREE.Group()
+  const wingMat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color('#FFE29A').multiplyScalar(1.35),
+    toneMapped: false, side: THREE.DoubleSide
+  })
+  const bodyMat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color('#FFD27A').multiplyScalar(1.25), toneMapped: false
+  })
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.14), bodyMat)
+  g.add(body)
+  const wg = new THREE.PlaneGeometry(1.05, 0.75)
+  wg.rotateX(-Math.PI / 2)
+  wg.translate(0, 0, 0.55)
+  const wl = new THREE.Mesh(wg, wingMat)
+  const wr = new THREE.Mesh(wg, wingMat)
+  wr.scale.z = -1
+  g.add(wl, wr)
+  g.userData.wings = [wl, wr]
+  g.traverse(o => { if (o.isMesh) o.userData.special = 'golden' })
+  g.visible = false
+  g.scale.setScalar(1.5)
+  return g
+}
+
 export class Fauna {
   constructor(scene, anchors) {
     this.scene = scene
@@ -351,9 +376,35 @@ export class Fauna {
     this.rabbit.visible = false
     scene.add(this.rabbit)
 
+    this.goldenG = makeGoldenButterfly()
+    scene.add(this.goldenG)
+    this.goldenT = 40 + Math.random() * 60
+    this.goldenAnim = null
+    this.onGoldenStart = null
+
     this.onEmber = null
     this.onDragonCall = null
     this.koiGold = false
+  }
+
+  startGolden() {
+    const a = Math.random() * Math.PI * 2
+    const a2 = a + 2.4 + Math.random() * 0.8
+    this.goldenAnim = {
+      a: new THREE.Vector3(Math.cos(a) * 31, 13 + Math.random() * 2, Math.sin(a) * 31),
+      b: new THREE.Vector3(Math.cos(a2) * 31, 15 + Math.random() * 3, Math.sin(a2) * 31),
+      t: 0,
+      dur: 13 + Math.random() * 4
+    }
+    this.goldenG.position.copy(this.goldenAnim.a)
+    this.goldenG.visible = true
+    if (this.onGoldenStart) this.onGoldenStart()
+  }
+
+  hideGolden() {
+    this.goldenG.visible = false
+    this.goldenAnim = null
+    this.goldenT = 70 + Math.random() * 80
   }
 
   setKoi(n) { for (let i = 0; i < this.koi.length; i++) this.koi[i].g.visible = i < n }
@@ -516,6 +567,29 @@ export class Fauna {
       const e = this.rabbit.userData.elixir
       e.rotation.y += dt * 1.3
       e.position.y = 0.18 + Math.sin(t * 2.2) * 0.06
+    }
+
+    if (this.goldenG.visible && this.goldenAnim) {
+      const G = this.goldenAnim
+      G.t += dt
+      const k = Math.min(1, G.t / G.dur)
+      if (k >= 1) {
+        this.hideGolden()
+      } else {
+        this._gp = this._gp || [new THREE.Vector3(), new THREE.Vector3()]
+        this._gp[0].lerpVectors(G.a, G.b, k)
+        this._gp[0].y += Math.sin(k * Math.PI * 3) * 1.6
+        this.goldenG.position.copy(this._gp[0])
+        this._gp[1].lerpVectors(G.a, G.b, Math.min(1, k + 0.02))
+        this._gp[1].y += Math.sin(Math.min(1, k + 0.02) * Math.PI * 3) * 1.6
+        this.goldenG.lookAt(this._gp[1])
+        const flap = Math.sin(t * 15) * 0.9
+        this.goldenG.userData.wings[0].rotation.x = -flap
+        this.goldenG.userData.wings[1].rotation.x = flap
+      }
+    } else if (!this.goldenG.visible) {
+      this.goldenT -= dt
+      if (this.goldenT <= 0) this.startGolden()
     }
   }
 

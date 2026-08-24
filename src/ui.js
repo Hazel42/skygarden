@@ -23,6 +23,10 @@ export class UI {
     this.btnSound = this.$('btnSound')
     this.btnTime = this.$('btnTime')
     this.btnHelp = this.$('btnHelp')
+    this.btnFull = this.$('btnFull')
+    this.soundIcon = this.btnSound.querySelector('.gi') || this.btnSound
+    this.timeVal = this.$('timeVal') || this.btnTime
+    this.fullIcon = this.$('fullVal') || this.btnFull
     this.helpPanel = this.$('helpPanel')
     this.rainBtn = this.$('rainBtn')
     this.btnQuests = this.$('btnQuests')
@@ -61,7 +65,7 @@ export class UI {
     this.btnBuildDone.addEventListener('click', () => this.closeBuild())
     this.btnSound.addEventListener('click', () => hooks.onMute(!this.state.muted))
     this.btnTime.addEventListener('click', () => {
-      this.btnTime.textContent = hooks.onTime()
+      this.timeVal.textContent = hooks.onTime()
     })
     this.btnHelp.addEventListener('click', () => {
       this._helpOpen = !this._helpOpen
@@ -70,6 +74,7 @@ export class UI {
     this.rainBtn.addEventListener('click', () => hooks.onRain())
     this.btnQuests.addEventListener('click', () => this.toggleQuests())
     this.btnPhoto.addEventListener('click', () => this.togglePhoto())
+    this.btnFull.addEventListener('click', () => hooks.onFullscreen())
     this._ascArm = false
     this.btnAscend.addEventListener('click', () => {
       if (!this.state.canAscend()) return
@@ -104,7 +109,7 @@ export class UI {
   }
 
   syncSoundIcon() {
-    this.btnSound.textContent = this.state.muted ? '🔇' : '🔊'
+    this.soundIcon.textContent = this.state.muted ? '🔇' : '🔊'
   }
 
   get removing() { return this.btnDeleteMode.classList.contains('on') }
@@ -115,15 +120,23 @@ export class UI {
     dock.camera = camera
   }
 
-  _openPanel(key, el) {
+  _openPanel(key, el, btn) {
     for (const other of [this.panel, this.buildPanel, this.questsPanel]) {
       if (other !== el) {
         other.classList.add('hidden')
         this.dock?.detach(other)
       }
     }
+    this.setBarActive(null)
+    if (btn) btn.classList.add('active')
     el.classList.remove('hidden')
     this.dock?.attach(key, el)
+  }
+
+  setBarActive(btn) {
+    for (const b of [this.btnUpgrades, this.btnBuild, this.btnQuests]) {
+      b.classList.toggle('active', b === btn)
+    }
   }
 
   closeAllPanels() {
@@ -131,22 +144,21 @@ export class UI {
       el.classList.add('hidden')
       this.dock?.detach(el)
     }
-    this.btnUpgrades.textContent = '✨ Upgrades'
+    this.setBarActive(null)
   }
 
   toggleUpgrades() {
     if (!this.panel.classList.contains('hidden')) {
       this.panel.classList.add('hidden')
       this.dock?.detach(this.panel)
-      this.btnUpgrades.textContent = '✨ Upgrades'
+      this.setBarActive(null)
       return
     }
     this.closeBuild()
     this.questsPanel.classList.add('hidden')
     this.dock?.detach(this.questsPanel)
     this.renderUpgrades()
-    this._openPanel('upgrades', this.panel)
-    this.btnUpgrades.textContent = '✕ Close'
+    this._openPanel('upgrades', this.panel, this.btnUpgrades)
   }
 
   toggleBuild() {
@@ -162,15 +174,20 @@ export class UI {
     if (!this.questsPanel.classList.contains('hidden')) {
       this.questsPanel.classList.add('hidden')
       this.dock?.detach(this.questsPanel)
+      this.setBarActive(null)
       return
     }
     this.closeBuild()
     this.renderQuests()
-    this._openPanel('quests', this.questsPanel)
+    this._openPanel('quests', this.questsPanel, this.btnQuests)
   }
 
   togglePhoto() {
     document.body.classList.toggle('photo-mode')
+  }
+
+  syncFullscreen(isFs) {
+    this.fullIcon.textContent = isFs ? '🗗' : '⛶'
   }
 
   toggleHelp() {
@@ -279,18 +296,21 @@ export class UI {
     this.questsPanel.classList.add('hidden')
     this.dock?.detach(this.questsPanel)
     this.renderBuild()
-    this._openPanel('build', this.buildPanel)
+    this._openPanel('build', this.buildPanel, this.btnBuild)
   }
 
   closeBuild() {
     this.buildPanel.classList.add('hidden')
-    this.dock?.detach(this.buildPanel)
+    if (this.dock && this.dock.current?.el === this.buildPanel) this.dock.detach(this.buildPanel)
     if (this._selectedBuild !== null) {
       this._selectedBuild = null
       this.hooks.onBuildSelect(null)
+      return
     }
     this.hooks.onBuildMode('place')
     this.btnDeleteMode.classList.remove('on')
+    if (!this.questsPanel.classList.contains('hidden')) this.setBarActive(this.btnQuests)
+    else if (this.panel.classList.contains('hidden')) this.setBarActive(null)
   }
 
   setSelectedBuild(id) {
@@ -382,6 +402,14 @@ export class UI {
     this.toastEl.style.opacity = 1
     clearTimeout(this._toastT)
     this._toastT = setTimeout(() => (this.toastEl.style.opacity = 0), dur)
+  }
+
+  flashSaved() {
+    if (!this._saveEl) this._saveEl = this.$('saveFlash')
+    if (!this._saveEl) return
+    this._saveEl.classList.add('show')
+    clearTimeout(this._saveT)
+    this._saveT = setTimeout(() => this._saveEl.classList.remove('show'), 900)
   }
 
   showBanner(title, sub) {

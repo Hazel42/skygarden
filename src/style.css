@@ -1,6 +1,12 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; height: 100%; overflow: hidden; }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+html { overflow: hidden; overscroll-behavior: none; }
 body {
+  position: fixed; inset: 0;
+  height: 100vh; height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden; overscroll-behavior: none;
+  touch-action: manipulation;
   font-family: 'Quicksand', 'Segoe UI', sans-serif;
   background: #1a2038;
   color: #5a4a6a;
@@ -34,15 +40,20 @@ body {
 }
 .hidden { display: none !important; }
 
-#topRight { position: absolute; top: 14px; right: 14px; display: flex; gap: 8px; }
-.iconbtn {
-  width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(255,255,255,.6);
-  background: rgba(255,255,255,.42); backdrop-filter: blur(12px);
-  font-size: 16px; font-weight: 700; color: #6b4f8f; cursor: pointer;
-  box-shadow: 0 6px 18px rgba(90,60,120,.16); transition: transform .15s, background .2s;
-  font-family: inherit;
+#topRight {
+  position: absolute; top: 14px; right: 14px;
+  display: flex; gap: 6px; padding: 7px 9px;
 }
-.iconbtn:hover { transform: scale(1.08); background: rgba(255,255,255,.65); }
+.iconbtn {
+  width: 40px; height: 40px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.55);
+  background: linear-gradient(160deg, rgba(255,255,255,.6), rgba(255,255,255,.28));
+  font-size: 15px; font-weight: 700; color: #6b4f8f; cursor: pointer;
+  box-shadow: 0 4px 12px rgba(90,60,120,.15);
+  transition: transform .15s, background .2s;
+  font-family: inherit; display: grid; place-items: center;
+}
+.iconbtn:hover { transform: translateY(-1px); background: rgba(255,255,255,.75); }
 
 #helpPanel {
   position: absolute; top: 68px; right: 14px; width: 300px; padding: 16px 18px;
@@ -95,21 +106,68 @@ body {
 
 .pillbtn {
   position: absolute; border: 1px solid rgba(255,255,255,.6);
-  background: rgba(255,255,255,.44); backdrop-filter: blur(12px);
-  color: #6b4f8f; font-weight: 700; font-family: inherit;
-  border-radius: 999px; padding: 11px 20px; font-size: 14px; cursor: pointer;
-  box-shadow: 0 8px 22px rgba(90,60,120,.2); transition: transform .15s, background .2s;
+  background: rgba(90,70,130,.45); backdrop-filter: blur(12px);
+  color: #fff; font-weight: 700; font-family: inherit;
+  border-radius: 999px; padding: 11px 20px; font-size: 14px;
+  pointer-events: none !important;
 }
-.pillbtn:hover { transform: scale(1.05); background: rgba(255,255,255,.66); }
-#btnUpgrades { right: 18px; bottom: 18px; }
-#rainBtn { left: 18px; bottom: 18px; }
-#rainBtn.on { background: rgba(190, 220, 255, .6); }
 #hint {
-  left: 50%; bottom: 22px; transform: translateX(-50%);
-  pointer-events: none !important; color: #fff; background: rgba(90,70,130,.4);
+  left: 50%; bottom: 92px; transform: translateX(-50%);
   animation: hintPulse 2.6s ease-in-out infinite;
 }
 @keyframes hintPulse { 0%,100% { opacity: .85 } 50% { opacity: .45 } }
+
+#gamebar {
+  position: absolute; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: flex; align-items: stretch; gap: 7px;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.36);
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  border: 1px solid rgba(255,255,255,.6);
+  border-radius: 22px;
+  box-shadow: 0 12px 34px rgba(60,40,100,.3), inset 0 1px 0 rgba(255,255,255,.55);
+  max-width: 96vw;
+}
+.gbtn {
+  min-width: 62px; padding: 7px 6px 6px; border-radius: 15px;
+  border: 1px solid rgba(255,255,255,.5);
+  background: linear-gradient(165deg, rgba(255,255,255,.66), rgba(255,255,255,.3));
+  cursor: pointer; font-family: inherit; color: #6b4f8f;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  box-shadow: 0 4px 12px rgba(90,60,120,.15), inset 0 1px 0 rgba(255,255,255,.5);
+  transition: transform .15s, box-shadow .2s, background .2s;
+}
+.gbtn:hover { transform: translateY(-2px); }
+.gbtn .gi { font-size: 19px; line-height: 1; }
+.gbtn .gl {
+  font-size: 9px; font-weight: 700; letter-spacing: .4px;
+  text-transform: uppercase; opacity: .72; white-space: nowrap;
+}
+.gbtn.active {
+  background: linear-gradient(165deg, #ffd9ea, #cfe0ff);
+  box-shadow: 0 0 0 2px rgba(140,190,255,.75), 0 6px 18px rgba(120,80,200,.32);
+  transform: translateY(-2px);
+}
+.gbtn.hidden { display: none; }
+.gbtn.on {
+  background: linear-gradient(165deg, #cfe4ff, #d9f3de);
+  box-shadow: 0 0 0 2px rgba(140,200,190,.55), 0 6px 18px rgba(90,140,160,.28);
+}
+.gsep { width: 1px; background: rgba(107,79,143,.22); margin: 4px 3px; }
+
+@media (max-width: 860px) {
+  #gamebar { gap: 5px; padding: 7px 9px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); border-radius: 18px; }
+  .gbtn { min-width: 52px; padding: 6px 4px 5px; border-radius: 12px; }
+  .gbtn .gi { font-size: 17px; }
+  .gbtn .gl { font-size: 7.5px; }
+}
+@media (max-width: 560px) {
+  .gbtn .gl { display: none; }
+  .gbtn { min-width: 42px; }
+  .gbtn .gi { font-size: 16px; }
+}
 
 #toast {
   position: absolute; left: 50%; bottom: 82px; transform: translateX(-50%);
@@ -149,15 +207,10 @@ body {
 @keyframes beginPulse { 0%,100% { transform: scale(1); opacity: .9 } 50% { transform: scale(1.06); opacity: .55 } }
 
 @media (max-width: 720px) {
-  #upgradePanel { left: 10px; right: 10px; width: auto; top: auto; bottom: 0; height: 46vh;
-    border-radius: 22px 22px 0 0; transform: translateY(0); }
-  #upgradePanel.hidden { transform: translateY(60vh); opacity: 0; }
-  #buildPanel { left: 10px !important; right: 10px; width: auto; top: auto; bottom: 0;
-    height: 52vh; border-radius: 22px 22px 0 0; }
-  #buildPanel.hidden { transform: translateY(70vh) !important; opacity: 0; }
   .ititle { font-size: 30px; } .ititle span { font-size: 21px; }
   #counter { min-width: 0; padding: 8px 14px; } .essence { font-size: 20px; }
   #helpPanel { width: calc(100vw - 28px); }
+  #toast { bottom: 76px; font-size: 12.5px; padding: 8px 16px; }
 }
 
 .lvltag {
@@ -222,6 +275,13 @@ body {
   text-align: center; opacity: 0; pointer-events: none;
   transition: opacity .45s, transform .45s cubic-bezier(.2,1.4,.4,1);
 }
+#saveFlash {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; font-weight: 600; color: #cfe8d0;
+  background: rgba(60, 90, 70, .4); padding: 3px 12px; border-radius: 999px;
+  opacity: 0; transition: opacity .5s; pointer-events: none !important;
+}
+#saveFlash.show { opacity: .85; }
 #banner.show { opacity: 1; transform: translateX(-50%) scale(1); }
 #banner .bt {
   font-size: 26px; font-weight: 700; color: #fff;
