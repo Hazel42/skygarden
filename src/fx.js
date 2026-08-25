@@ -126,6 +126,7 @@ export class FX {
     this.smoke = new PointPool(scene, sparkTex, 110, 1.0, false, 0.38)
     this.smokeOn = false
     this.smokeAnchor = null
+    this.waterfallOn = false
     this.smokeAcc = 0
 
     this.debrisGeo = new THREE.BoxGeometry(0.17, 0.17, 0.17)
@@ -316,7 +317,7 @@ export class FX {
     let guard = 24
     while (live < wantAmbient && guard-- > 0) {
       live++
-      if (this.sakuraLevel > 0 || Math.random() < 0.75) {
+      if ((this.sakuraLevel > 0 || Math.random() < 0.75) && trees.length) {
         const tr = trees[(Math.random() * trees.length) | 0]
         const x = tr.x + (Math.random() - 0.5) * tr.rad * 2.4
         const z = tr.z + (Math.random() - 0.5) * tr.rad * 2.4
@@ -337,37 +338,41 @@ export class FX {
     }
 
     const lip = this.anchors.waterfall
-    this.jetAcc += dt * 74
-    while (this.jetAcc >= 1) {
-      this.jetAcc -= 1
-      const idx = this.jet.spawn(
-        lip.x + (Math.random() - 0.5) * 1.4,
-        lip.y + Math.random() * 0.3,
-        lip.z + (Math.random() - 0.5) * 1.4,
-        {
-          max: 1.1, vx: -1.4 + Math.random() * 0.5, vy: -0.5, vz: (Math.random() - 0.5) * 0.5,
-          ay: -17, drag: 1, mode: 2,
-          c: [0.75, 0.92, 1]
-        }
-      )
-      this.jet.setColor(idx, '#BFEFFF', 1.05)
+    if (this.waterfallOn) {
+      this.jetAcc += dt * 74
+      while (this.jetAcc >= 1) {
+        this.jetAcc -= 1
+        const idx = this.jet.spawn(
+          lip.x + (Math.random() - 0.5) * 1.4,
+          lip.y + Math.random() * 0.3,
+          lip.z + (Math.random() - 0.5) * 1.4,
+          {
+            max: 1.1, vx: -1.4 + Math.random() * 0.5, vy: -0.5, vz: (Math.random() - 0.5) * 0.5,
+            ay: -17, drag: 1, mode: 2,
+            c: [0.75, 0.92, 1]
+          }
+        )
+        this.jet.setColor(idx, '#BFEFFF', 1.05)
+      }
     }
     this.jet.update(dt, t, env)
 
-    this.mistAcc += dt * 26
-    while (this.mistAcc >= 1) {
-      this.mistAcc -= 1
-      const idx = this.mist.spawn(
-        lip.x - 2.6 + (Math.random() - 0.5) * 3,
-        0.5 + Math.random() * 1.5,
-        lip.z + (Math.random() - 0.5) * 3,
-        {
-          max: 1.5 + Math.random(), vx: (Math.random() - 0.5) * 0.7, vy: 0.5 + Math.random() * 0.7, vz: (Math.random() - 0.5) * 0.7,
-          ay: 0.25, drag: 0.985, mode: 3, br: 0.5,
-          c: [0.8, 0.93, 1]
-        }
-      )
-      this.mist.setColor(idx, '#CFEFFF', 0.6)
+    if (this.waterfallOn) {
+      this.mistAcc += dt * 26
+      while (this.mistAcc >= 1) {
+        this.mistAcc -= 1
+        const idx = this.mist.spawn(
+          lip.x - 2.6 + (Math.random() - 0.5) * 3,
+          0.5 + Math.random() * 1.5,
+          lip.z + (Math.random() - 0.5) * 3,
+          {
+            max: 1.5 + Math.random(), vx: (Math.random() - 0.5) * 0.7, vy: 0.5 + Math.random() * 0.7, vz: (Math.random() - 0.5) * 0.7,
+            ay: 0.25, drag: 0.985, mode: 3, br: 0.5,
+            c: [0.8, 0.93, 1]
+          }
+        )
+        this.mist.setColor(idx, '#CFEFFF', 0.6)
+      }
     }
     this.mist.update(dt, t, env)
 

@@ -326,6 +326,7 @@ export class Fauna {
       const morph = i % 3
       const g = makeKoi(this.mats, morph)
       g.visible = false
+      g.traverse(o => { if (o.isMesh) { o.userData.special = 'koi'; o.userData.koiIdx = i } })
       scene.add(g)
       this.koi.push({ g, ang: Math.random() * Math.PI * 2, r: 1.3 + (i % 4) * 0.55, spd: (0.35 + Math.random() * 0.3), ph: Math.random() * 6, sc: 0.85 + Math.random() * 0.35 })
     }
@@ -409,9 +410,24 @@ export class Fauna {
     this.goldenT = 70 + Math.random() * 80
   }
 
-  setKoi(n) { for (let i = 0; i < this.koi.length; i++) this.koi[i].g.visible = i < n }
-  setButterflies(n) { for (let i = 0; i < this.flies.length; i++) this.flies[i].g.visible = i < n }
-  setWisps(n) { for (let i = 0; i < this.wisps.length; i++) this.wisps[i].s.visible = i < n }
+  setKoi(n) { this._baseKoi = n; for (let i = 0; i < this.koi.length; i++) this.koi[i].g.visible = i < n }
+  setButterflies(n) { this._baseFlies = n; for (let i = 0; i < this.flies.length; i++) this.flies[i].g.visible = i < n }
+  setWisps(n) { this._baseWisps = n; for (let i = 0; i < this.wisps.length; i++) this.wisps[i].s.visible = i < n }
+
+  setNightFactor(nf) {
+    const dayOn = nf < 0.58
+    const nightOn = nf > 0.42
+    const bf = this._baseFlies || 0
+    for (let i = 0; i < this.flies.length; i++) {
+      if (i >= bf && !this.flies[i].g.visible) continue
+      this.flies[i].g.visible = dayOn && i < bf
+    }
+    const wf = this._baseWisps || 0
+    for (let i = 0; i < this.wisps.length; i++) {
+      if (i >= wf && !this.wisps[i].s.visible) continue
+      this.wisps[i].s.visible = nightOn && i < wf
+    }
+  }
   setPhoenix(on) { this.phoenix.visible = !!on }
   setCranes(n) { this.cranes.forEach((c, i) => (c.g.visible = i < n)) }
   setDragon(on) {

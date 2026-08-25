@@ -5,3 +5,5 @@ dist/
 .env
 .env.*
 !.env.example
+.agents/
+image-to-voxel-art/

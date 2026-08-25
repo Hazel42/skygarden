@@ -254,6 +254,28 @@ class AudioEngine {
     n.start(t); n.stop(t + 0.55)
   }
 
+  placeSound(cat) {
+    if (!this.ok || this.muted) return
+    const c = this.ctx, t = c.currentTime
+    const cfg = {
+      buildings: { freq: 220, type: 'triangle', dur: 0.35, vol: 0.14 },
+      nature: { freq: 660, type: 'sine', dur: 0.28, vol: 0.1 },
+      decor: { freq: 440, type: 'triangle', dur: 0.25, vol: 0.1 },
+      lights: { freq: 880, type: 'sine', dur: 0.3, vol: 0.12 },
+      fauna: { freq: 550, type: 'sine', dur: 0.22, vol: 0.09 }
+    }[cat] || { freq: 523, type: 'sine', dur: 0.25, vol: 0.1 }
+    const o = c.createOscillator()
+    o.type = cfg.type
+    o.frequency.setValueAtTime(cfg.freq, t)
+    o.frequency.exponentialRampToValueAtTime(cfg.freq * 1.5, t + cfg.dur * 0.6)
+    const g = c.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(cfg.vol, t + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + cfg.dur)
+    o.connect(g); g.connect(this.sfx); g.connect(this.verb)
+    o.start(t); o.stop(t + cfg.dur + 0.05)
+  }
+
   dragonCall() {    if (!this.ok || this.muted) return
     const c = this.ctx, t = c.currentTime
     const o = c.createOscillator()
@@ -284,6 +306,70 @@ class AudioEngine {
     g.cancelScheduledValues(t)
     g.setValueAtTime(g.value, t)
     g.linearRampToValueAtTime(on ? 0.085 : 0, t + 2.2)
+  }
+
+  initAmbience() {
+    if (!this.ok || this._ambReady) return
+    this._ambReady = true
+    const c = this.ctx
+
+    const src = c.createBufferSource()
+    src.buffer = this.noiseBuf
+    src.loop = true
+    this.windBP = c.createBiquadFilter()
+    this.windBP.type = 'bandpass'
+    this.windBP.frequency.value = 420
+    this.windBP.Q.value = 0.55
+    this.windG = c.createGain()
+    this.windG.gain.value = 0
+    const lfo = c.createOscillator()
+    lfo.frequency.value = 0.07
+    const lfg = c.createGain()
+    lfg.gain.value = 170
+    lfo.connect(lfg); lfg.connect(this.windBP.frequency)
+    src.connect(this.windBP); this.windBP.connect(this.windG); this.windG.connect(this.amb)
+    src.start(); lfo.start()
+
+    this.padGains = [261.63, 329.63].map((f, i) => {
+      const o = c.createOscillator()
+      o.type = 'triangle'
+      o.frequency.value = f
+      o.detune.value = i * 5
+      const g = c.createGain()
+      g.gain.value = 0
+      const lp = c.createBiquadFilter()
+      lp.type = 'lowpass'
+      lp.frequency.value = 900
+      o.connect(lp); lp.connect(g); g.connect(this.mus)
+      o.start()
+      return g
+    })
+  }
+
+  setAmbWind(level) {
+    if (!this.ok || !this._ambReady || !this.windG) return
+    const t = this.ctx.currentTime
+    this.windG.gain.cancelScheduledValues(t)
+    this.windG.gain.setValueAtTime(this.windG.gain.value, t)
+    this.windG.gain.linearRampToValueAtTime(0.05 * level, t + 1.6)
+  }
+
+  setAmbNight(nf) {
+    if (!this.ok || !this._ambReady || !this.windBP) return
+    const target = 330 + (1 - nf) * 300
+    if (Math.abs((this._lastNf ?? -1) - nf) < 0.04) return
+    this._lastNf = nf
+    this.windBP.frequency.linearRampToValueAtTime(target, this.ctx.currentTime + 1.4)
+  }
+
+  setAmbPad(mult) {
+    if (!this.ok || !this._ambReady || !this.padGains) return
+    const t = this.ctx.currentTime
+    const v = Math.min(0.05, 0.011 * mult)
+    this.padGains.forEach(g => {
+      g.gain.cancelScheduledValues(t)
+      g.gain.linearRampToValueAtTime(v, t + 1.8)
+    })
   }
 
   setMuted(m) {

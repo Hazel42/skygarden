@@ -10,6 +10,53 @@ export const POND = { x: -4.5, z: -3.5, r: 4.3 }
 const WALLS = [7, 5, 5, 3, 3, 3, 3]
 const GRASS = [C.grassA, C.grassB, C.grassC, C.grassA, C.grassD]
 
+// ---- Blossoming Isle: pulau bertumbuh tanpa batas · tanah polos tanpa properti ----
+const ISLAND_STAGES = [
+  null,
+  { R: 8, pondR: 2.6, trees: [], toro: [], stones: [], bamboo: [], path: false, channel: false, tufts: 0, lotus: false, peach: false, incense: false, crystals: false,
+    docks: { upgrades: [3, 5.5], build: [-3, 5.5], quests: [0, 7] } },
+  { R: 10.5, pondR: 3.4, trees: [], toro: [], stones: [], bamboo: [], path: true, channel: false, tufts: 0, lotus: false, peach: false, incense: false, crystals: false,
+    docks: { upgrades: [4, 7], build: [-4, 7], quests: [0, 9.5] } },
+  { R: 13, pondR: 4.0, trees: [], toro: [], stones: [], bamboo: [], path: true, channel: true, tufts: 0, lotus: false, peach: false, incense: false, crystals: false,
+    docks: { upgrades: [4, 9], build: [-4, 9], quests: [2, 12] } },
+  { R: 15, pondR: 4.3, trees: [], toro: [], stones: [], bamboo: [], path: true, channel: true, tufts: 0, lotus: false, peach: false, incense: false, crystals: false,
+    docks: { upgrades: [4, 9], build: [-4, 9], quests: [2, 12] }
+  }
+]
+
+const STAGE_CACHE = new Map()
+function proceduralStage(n) {
+  if (STAGE_CACHE.has(n)) return STAGE_CACHE.get(n)
+  const b = ISLAND_STAGES[4]
+  const R = Math.round((b.R + (n - 4) * 2.5) * 10) / 10
+  const cfg = {
+    R,
+    pondR: b.pondR,
+    trees: [],
+    toro: [],
+    stones: [],
+    bamboo: [],
+    path: true,
+    channel: true,
+    tufts: 0,
+    lotus: false,
+    peach: false,
+    incense: false,
+    crystals: false,
+    docks: {
+      upgrades: [Math.round(R * 0.28), Math.round(R * 0.52)],
+      build: [-Math.round(R * 0.28), Math.round(R * 0.52)],
+      quests: [0, Math.min(Math.round(R * 0.68), R - 2)]
+    }
+  }
+  STAGE_CACHE.set(n, cfg)
+  return cfg
+}
+
+export function stageConfig(n) {
+  n = Math.max(1, Math.floor(Number(n) || 1))
+  return ISLAND_STAGES[n] || proceduralStage(n)
+}
 export class World {
   constructor(sys, scene) {
     this.sys = sys
@@ -50,8 +97,10 @@ export class World {
     this.root.add(this.isleGroup)
 
     this.rng = mulberry32(1337)
-    this.buildIsland()
-    this.buildWater()
+    this.islandStage = 0
+    this.dockProps = []
+    this.treesBuilt = false
+    this.buildIslandStage(1)
     this.buildFloatingLanterns()
     this.buildClouds()
     this.buildPagoda(0)
@@ -59,24 +108,57 @@ export class World {
       for (let z = -5; z <= 5; z++) this.surfMain.delete(x + ',' + z)
     this.buildDawnIsle()
     this.buildJadeIsle()
-    this.buildPeachTree(-11, 4)
-    this.buildIncense(3, 7)
     this.buildRings()
     this.buildLotusIsle()
     this.buildStarPeak()
-    this.buildDockProps()
   }
 
-  buildLotusIsle(animatedGroup = true) {
+  setIslandStage(stage, animated = false) {
+    stage = Math.max(1, Math.floor(Number(stage) || 1))
+    if (stage === this.islandStage) return
+    if (stage < this.islandStage && this.peachGroup) {
+      this.root.remove(this.peachGroup)
+      this.peachGroup.traverse(o => {
+        if (o.isMesh) { o.geometry.dispose(); o.material.dispose?.() }
+      })
+      this.peachGroup = null
+      this.peachMeshes = []
+    }
+    this.buildIslandStage(stage)
+    if (animated && this.onIslandGrown === null) { /* noop hook placeholder */ }
+    if (animated) {
+      const g = this.islandVg.group
+      g.position.y = -7
+      gsap.to(g.position, { y: 0, duration: 1.5, ease: 'back.out(1.1)' })
+      if (this.water) {
+        this.water.position.y = 9.2
+        gsap.to(this.water.position, { y: 9.74, duration: 1.5, ease: 'back.out(1.1)' })
+      }
+    }
+    if (this.onStageChanged) this.onStageChanged(stage)
+  }
+
+  buildLotusIsle(R = 6) {
     if (!this.lotusGroup) {
       this.lotusGroup = new THREE.Group()
       this.lotusGroup.visible = false
       this.root.add(this.lotusGroup)
     }
+    if (this.lotusVg) this.lotusVg.destroy()
+    if (!this.lotusWaterKeys) this.lotusWaterKeys = new Set()
+    for (const k of this.lotusWaterKeys) this.waterCells.delete(k)
+    this.lotusWaterKeys.clear()
+    this.surfLotus.clear()
+    if (this.lotusWater) {
+      this.lotusWater.geometry.dispose()
+      this.lotusGroup.remove(this.lotusWater)
+      this.lotusWater = null
+    }
     const vg = this.sys.group(this.lotusGroup)
     this.lotusVg = vg
     const rng = mulberry32(60606)
-    const ITOP = 9, R = 6, CX = -24, CZ = 24
+    const ITOP = 9, CX = -24, CZ = 24
+    this.lotusR = R
 
     for (let x = -R; x <= R; x++)
       for (let z = -R; z <= R; z++) {
@@ -93,6 +175,7 @@ export class World {
             for (let yy = ITOP - 1; yy >= bottom; yy--) vg.add(CX + x, yy, CZ + z, C.stone)
           } else {
             this.waterCells.add(ck)
+            this.lotusWaterKeys.add(ck)
             for (let yy = bottom; yy <= ITOP - 3; yy++) vg.add(CX + x, yy, CZ + z, C.stoneDeep)
           }
         } else {
@@ -103,13 +186,6 @@ export class World {
         }
       }
 
-    vg.add(CX - 1, ITOP + 0.9, CZ, C.lotusLeaf, { size: 1 })
-    vg.add(CX + 1, ITOP + 0.9, CZ - 1, C.lotusLeaf, { size: 0.85 })
-    for (const [ox, oz] of [[0, 0.28], [0, -0.28], [0.28, 0], [-0.28, 0]])
-      vg.add(CX - 1 + ox, ITOP + 1.25, CZ + oz, C.lotusFlower, { size: 0.45 })
-    vg.add(CX - 1, ITOP + 1.6, CZ, C.gold, { glow: true, size: 0.36 })
-    vg.add(CX + 1.4, ITOP + 1.15, CZ + 1.2, '#FFC0DB', { glow: true, size: 0.4 })
-
     this.lotusWater = new THREE.Mesh(
       new THREE.CircleGeometry(2.35, 24),
       new THREE.MeshPhongMaterial({ color: C.water, transparent: true, opacity: 0.66, shininess: 110, specular: '#CFEFFF' })
@@ -117,8 +193,6 @@ export class World {
     this.lotusWater.rotation.x = -Math.PI / 2
     this.lotusWater.position.set(CX, ITOP - 0.15, CZ)
     this.lotusGroup.add(this.lotusWater)
-
-    this.makeTreeOn(vg, CX - 3, CZ - 3, ITOP, 4, 1.8)
 
     const b0 = new THREE.Vector3(-13.4, 10.4, 9.6)
     const b2 = new THREE.Vector3(-19.4, 9.6, 19.6)
@@ -134,7 +208,6 @@ export class World {
     }
 
     vg.build()
-    this.lotusRevealed = false
   }
 
   revealLotus(animated) {
@@ -150,17 +223,21 @@ export class World {
     }
   }
 
-  buildStarPeak() {
+  buildStarPeak(exp = 0) {
     if (!this.starGroup) {
       this.starGroup = new THREE.Group()
       this.starGroup.visible = false
       this.root.add(this.starGroup)
     }
+    if (this.starVg) this.starVg.destroy()
+    this.surfStar.clear()
     const vg = this.sys.group(this.starGroup)
     this.starVg = vg
     const rng = mulberry32(70707)
     const SX = 36, SZ = -27
     const SUMMIT = 21
+    this.starExp = exp
+    const hwTop = 1 + exp
 
     for (let lvl = 0; lvl < 12; lvl++) {
       const y = SUMMIT - lvl
@@ -174,33 +251,12 @@ export class World {
           vg.add(SX + x, y, SZ + z, col)
         }
     }
-    for (let x = -1; x <= 1; x++)
-      for (let z = -1; z <= 1; z++) {
+    for (let x = -hwTop; x <= hwTop; x++)
+      for (let z = -hwTop; z <= hwTop; z++) {
+        if (Math.hypot(x, z) > hwTop + 0.35) continue
         vg.add(SX + x, SUMMIT + 1, SZ + z, GRASS[Math.floor(vnoise(x, z, 35) * 4)])
         this.surfStar.set((SX + x) + ',' + (SZ + z), SUMMIT + 1)
       }
-
-    for (const [ox, oz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
-      for (let hgt = 2; hgt <= 4; hgt++)
-        vg.add(SX + ox, SUMMIT + hgt, SZ + oz, '#F7EDDE', { size: 0.42 })
-    for (let rw = 5; rw >= 1; rw -= 2) {
-      const hw = Math.floor(rw / 2)
-      const ry = SUMMIT + 5 + (5 - rw) / 2
-      for (let x = -hw; x <= hw; x++)
-        for (let z = -hw; z <= hw; z++) {
-          const outer = Math.abs(x) === hw || Math.abs(z) === hw
-          vg.add(SX + x, ry, SZ + z, outer ? C.gold : ((((x + z) & 1) ? C.roofA : C.roofB)), { size: 0.95 })
-        }
-    }
-    vg.add(SX, SUMMIT + 8, SZ, '#FFF0B8', { glow: true, size: 0.85 })
-    vg.add(SX, SUMMIT + 7, SZ, C.gold, { size: 0.5 })
-
-    for (let i = 0; i < 8; i++) {
-      const a = rng() * Math.PI * 2, rr = rng() * 1.2
-      vg.add(SX + Math.round(Math.cos(a) * rr), SUMMIT + 1.68, SZ + Math.round(Math.sin(a) * rr),
-        rng() < 0.5 ? '#FFF0B8' : '#C9A7FF', { glow: true, size: 0.3 })
-    }
-    this.anchors.trees.push({ x: SX, y: SUMMIT + 2, z: SZ, rad: 2 })
 
     const b0 = new THREE.Vector3(37.5, 11.8, -11.6)
     const b2 = new THREE.Vector3(36.5, SUMMIT + 1.4, -25.6)
@@ -222,7 +278,6 @@ export class World {
     }
 
     vg.build()
-    this.starRevealed = false
   }
 
   revealStar(animated) {
@@ -288,6 +343,7 @@ export class World {
       g.position.set(x, topY, z)
       tag(g, key)
       this.root.add(g)
+      this.dockProps.push(g)
       this.dockBobs.push({ orb, baseY: 2.65, ph: x })
       this.anchors['dock_' + key] = new THREE.Vector3(x, topY + 2.6, z)
     }
@@ -304,6 +360,7 @@ export class World {
       g.position.set(x, placeAt(x, z), z)
       tag(g, key)
       this.root.add(g)
+      this.dockProps.push(g)
       this.dockBobs.push({ orb, baseY: 1.7, ph: z })
       this.anchors['dock_' + key] = new THREE.Vector3(x, g.position.y + 1.7, z)
     }
@@ -323,13 +380,15 @@ export class World {
       g.position.set(x, placeAt(x, z), z)
       tag(g, key)
       this.root.add(g)
+      this.dockProps.push(g)
       this.dockBobs.push({ orb, baseY: 2.45, ph: x + z })
       this.anchors['dock_' + key] = new THREE.Vector3(x, g.position.y + 2.4, z)
     }
 
-    mkSign(4, 9, 'upgrades', '#FFC9DC')
-    mkCrate(-4, 9, 'build', '#A8E8DC')
-    mkBoard(2, 12, 'quests', '#FFF0B8')
+    const dc = stageConfig(this.islandStage).docks
+    mkSign(dc.upgrades[0], dc.upgrades[1], 'upgrades', '#FFC9DC')
+    mkCrate(dc.build[0], dc.build[1], 'build', '#A8E8DC')
+    mkBoard(dc.quests[0], dc.quests[1], 'quests', '#FFF0B8')
   }
 
   cellAt(x, z) {
@@ -356,10 +415,35 @@ export class World {
     return list
   }
 
-  buildIsland() {
-    const vg = this.islandVg
-    const rng = this.rng
-    const R = ISLE_R
+  buildIslandStage(stage) {
+    if (this.islandVg) this.islandVg.destroy()
+    if (this.water) {
+      this.water.geometry.dispose()
+      this.root.remove(this.water)
+      this.water = null
+    }
+    for (const g of this.dockProps) {
+      g.traverse(o => {
+        if (o.isMesh) { o.geometry.dispose(); o.material.dispose?.() }
+      })
+      this.root.remove(g)
+    }
+    this.dockProps = []
+    this.dockMeshes = []
+    this.dockBobs = []
+    this.anchors.trees = []
+    this.anchors.toroLights = []
+
+    const cfg = stageConfig(stage)
+    this.islandStage = stage
+    this.waterfallOn = !!cfg.channel
+    this.R = cfg.R
+    this.pondR = cfg.pondR
+    this.anchors.pond = { x: POND.x, z: POND.z, r: cfg.pondR }
+
+    const vg = this.sys.group(this.root)
+    this.islandVg = vg
+    const R = cfg.R
 
     for (let x = -R; x <= R; x++) {
       for (let z = -R; z <= R; z++) {
@@ -372,8 +456,8 @@ export class World {
         const bottom = Math.round(TOP - (1 - Math.min(d / R, 1) ** 2) * 7.5 - vnoise(x * 0.6, z * 0.6, 11) * 2)
 
         const pd = Math.hypot(x - POND.x, z - POND.z)
-        const pr = POND.r + (vnoise(x * 0.5, z * 0.5, 3) - 0.5) * 1.3
-        const inChannel = x <= -9 && x >= -13 && (z === -4 || z === -3) && x <= Math.floor(edge) - 1
+        const pr = cfg.pondR + (vnoise(x * 0.5, z * 0.5, 3) - 0.5) * 1.3
+        const inChannel = cfg.channel && x <= -9 && x >= -13 && (z === -4 || z === -3) && x <= Math.floor(edge) - 1
 
         if (pd < pr || inChannel) {
           const ck = x + ',' + z
@@ -395,9 +479,9 @@ export class World {
           continue
         }
 
-        const onPathS = Math.abs(x) <= 1 && z >= 6 && z <= 8 && topY === TOP
-        const onPathE = z >= 0 && z <= 1 && x >= 10 && x <= 15 && topY === TOP
-        const steps = (x === 0 && (z === 10 || z === 12))
+        const onPathS = cfg.path && Math.abs(x) <= 1 && z >= 6 && z <= 8 && topY === TOP
+        const onPathE = cfg.path && R >= 14 && z >= 0 && z <= 1 && x >= 10 && x <= 15 && topY === TOP
+        const steps = cfg.path && R >= 13 && (x === 0 && (z === 10 || z === 12))
         if (onPathS || onPathE || steps) {
           vg.add(x, topY, z, C.sand)
         } else {
@@ -412,15 +496,15 @@ export class World {
     }
 
     const tuftRng = mulberry32(777)
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < cfg.tufts; i++) {
       const a = tuftRng() * Math.PI * 2
-      const rr = Math.sqrt(tuftRng()) * (ISLE_R - 2)
+      const rr = Math.sqrt(tuftRng()) * (R - 2)
       const x = Math.cos(a) * rr, z = Math.sin(a) * rr
       const d = Math.hypot(x, z)
       if (d < 7.5) continue
       const pd = Math.hypot(x - POND.x, z - POND.z)
-      if (pd < POND.r + 1.2) continue
-      if (x <= -8 && z >= -5 && z <= -2) continue
+      if (pd < cfg.pondR + 1.2) continue
+      if (cfg.channel && x <= -8 && z >= -5 && z <= -2) continue
       const bump = Math.round(vnoise(x * 0.35, z * 0.35, 7) * 1.8 - 0.9)
       const topY = TOP + bump
       if (tuftRng() < 0.68) {
@@ -441,7 +525,7 @@ export class World {
         if (d < edge - 1.25) continue
         vg.add(x, this.surfMain.get(key) - 0.3, z, C.grassC, { size: 1.06 })
       }
-    for (let i = 0; i < 46; i++) {
+    for (let i = 0; i < Math.floor(cfg.tufts * 0.18); i++) {
       const a = edgeRng() * Math.PI * 2
       const rr = R - 1.2 + edgeRng() * 2.2
       const x = Math.round(Math.cos(a) * rr), z = Math.round(Math.sin(a) * rr)
@@ -450,110 +534,133 @@ export class World {
       const topY = this.surfMain.get(key)
       const len = 1 + Math.floor(edgeRng() * 3)
       for (let v = 0; v < len; v++) {
-        vg.add(x + (edgeRng() - 0.5) * 0.24, topY - 0.55 - v * 0.6, z + (edgeRng() - 0.5) * 0.24,
+        vg.add(x + (edgeRng() - 0.5) * 0.24, topY - 0.55 - v * 0.28, z + (edgeRng() - 0.5) * 0.24,
           edgeRng() < 0.5 ? C.moss : '#7A9A4A',
-          { size: Math.max(0.16, 0.3 - v * 0.06), sway: 0.65 })
+          { size: Math.max(0.18, 0.3 - v * 0.04), sway: 0.65 })
       }
     }
 
-    this.makeTree(7, -6, 5, 2.9)
-    this.makeTree(-9, 3, 6, 3.3)
-    this.makeTree(-2, 9, 4, 2.6)
-    this.makeTree(10, 4, 5, 3.0)
-    this.makeTree(-11, -6, 5, 2.7)
+    for (const [tx, tz, variant, h, rad] of cfg.trees) this.makeTree(tx, tz, h, rad, variant)
+    for (const [bx, bz] of cfg.bamboo) this.makeBamboo(bx, bz)
+    for (const [sx, sz] of cfg.stones) this.makeStone(sx, sz, sx === -2 && sz === -7)
+    for (const [px, pz] of cfg.toro) this.makeToro(px, pz)
+    if (cfg.lotus) this.makeLotus()
 
-    this.makeBamboo(12, -9)
-    this.makeBamboo(-13, 7)
-    this.makeBamboo(6, -12)
-
-    this.makeStone(5, 4, true)
-    this.makeStone(-6, -8, false)
-    this.makeStone(11, -3, false)
-    this.makeStone(-3, 12, false)
-
-    this.makeToro(3, 9)
-    this.makeToro(-8, -9)
-
-    this.makeLotus()
-
-    for (let i = 0; i < 6; i++) {
-      const a = rng() * Math.PI * 2
-      const rr = rng() * 2.6
-      vg.add(Math.cos(a) * rr, 1.5 + Math.floor(rng() * 3), Math.sin(a) * rr,
-        rng() < 0.6 ? C.crystalA : C.crystalB, { glow: true, size: 0.55 + rng() * 0.45 })
+    if (cfg.crystals) {
+      for (let i = 0; i < 6; i++) {
+        const a = this.rng() * Math.PI * 2
+        const rr = this.rng() * 2.6
+        vg.add(Math.cos(a) * rr, 1.5 + Math.floor(this.rng() * 3), Math.sin(a) * rr,
+          this.rng() < 0.6 ? C.crystalA : C.crystalB, { glow: true, size: 0.55 + this.rng() * 0.45 })
+      }
     }
 
-    vg.add(-12.2, TOP + 1.4, -2.1, C.stoneDeep, { size: 0.72 })
-    vg.add(-12.4, TOP + 1.55, -4.9, C.stone, { size: 0.8 })
-    vg.add(-12.9, TOP + 1.25, -3.5, C.stoneDeep, { size: 0.6 })
-    vg.add(-11.9, TOP + 1.1, -3.5, C.moss, { size: 0.5 })
+    if (cfg.channel) {
+      vg.add(-12.2, TOP + 0.87, -2.1, C.stoneDeep, { size: 0.72 })
+      vg.add(-12.4, TOP + 0.91, -4.9, C.stone, { size: 0.8 })
+      vg.add(-12.9, TOP + 0.81, -3.5, C.stoneDeep, { size: 0.6 })
+      vg.add(-11.9, TOP + 0.7, -3.5, C.moss, { size: 0.5 })
+    }
 
+    if (cfg.peach && !this.peachGroup) this.buildPeachTree(-11, 4)
+    if (cfg.incense) this.buildIncense(3, 7)
+    else this.anchors.incense = null
+
+    this.buildWater()
+    this.buildDockProps()
     vg.build()
   }
 
-  makeTree(tx, tz, h, rad) {
+  makeTree(tx, tz, h, rad, variant = 'sakura') {
     const vg = this.islandVg
     const rng = mulberry32(tx * 31 + tz * 17 + 5)
-    const baseY = TOP + 1
+    const baseY = this.surfMain.get(tx + ',' + tz) ?? TOP
+    this.surfMain.delete(tx + ',' + tz)
 
-    vg.add(tx, baseY - 0.25, tz + 1, C.woodDark, { size: 0.55 })
-    vg.add(tx, baseY - 0.25, tz - 1, C.woodDark, { size: 0.5 })
-    vg.add(tx + 1, baseY - 0.25, tz, C.woodDark, { size: 0.5 })
+    const isPlum = variant === 'plum'
+    const B_LO = isPlum ? '#C2558F' : C.blossomC
+    const B_MID = isPlum ? '#E87FB8' : C.blossomB
+    const B_HI = isPlum ? '#F7B8D9' : C.blossomA
+    const B_TIP = isPlum ? '#FFF0F7' : '#FFE4EF'
+    const B_GLOW = isPlum ? '#FFD9EC' : C.blossomGlow
 
-    const taper = [1.05, 0.92, 0.8, 0.68]
+    for (const [ox, oz, s] of [[0.75, 0.25, 0.52], [-0.65, 0.45, 0.48], [0.1, -0.8, 0.5], [-0.3, -0.55, 0.42]])
+      vg.add(tx + ox, baseY + 0.3, tz + oz, C.woodDark, { size: s })
+
+    const lean = (rng() * 2 - 1) * 0.9
+    const leanZ = (rng() * 2 - 1) * 0.9
+    let px = tx, pz = tz
     for (let i = 0; i < h; i++) {
-      vg.add(tx, baseY + i, tz, i % 2 ? C.wood : C.woodDark, { size: taper[Math.min(i, 3)] })
+      const t = i / Math.max(1, h - 1)
+      px = tx + lean * t
+      pz = tz + leanZ * t
+      vg.add(px, baseY + 0.55 + i, pz,
+        i % 2 ? C.wood : C.woodDark,
+        { size: 0.68 - t * 0.16 })
+    }
+    const topX = px, topZ = pz
+    const topY = baseY + 0.55 + h
+
+    const nArms = 3 + Math.floor(rng() * 2)
+    const armTips = []
+    for (let a = 0; a < nArms; a++) {
+      const ang = (a / nArms) * Math.PI * 2 + rng() * 0.8
+      const dx = Math.cos(ang), dz = Math.sin(ang)
+      const ay = topY - 1.2 + Math.floor(rng() * 2)
+      vg.add(topX + dx * 0.75, ay, topZ + dz * 0.75, C.wood, { size: 0.52 })
+      const ex = topX + dx * 1.5, ez = topZ + dz * 1.5
+      vg.add(ex, ay + 0.35, ez, C.woodDark, { size: 0.4 })
+      vg.add(ex + dx * 0.5, ay + 0.8, ez + dz * 0.5, C.wood, { size: 0.32 })
+      armTips.push([ex + dx * 0.5, ay + 0.8, ez + dz * 0.5])
     }
 
-    const armDirs = []
-    for (let a = 0; a < 3; a++) armDirs.push(rng() * Math.PI * 2)
-    for (const a of armDirs) {
-      const ax = Math.round(Math.cos(a)), az = Math.round(Math.sin(a))
-      const ay = baseY + h - 1 + Math.floor(rng() * 2)
-      vg.add(tx + ax, ay, tz + az, C.wood, { size: 0.55 })
-      vg.add(tx + ax * 2, ay + 1, tz + az * 2, C.woodDark, { size: 0.45 })
-    }
-
-    const cy = baseY + h + 1
-    const cols = [C.blossomA, C.blossomB, C.blossomC, C.blossomA]
-    const canopy = []
-    const blobs = [
-      [0, 0, 0, rad],
-      [rad * 0.55, rad * 0.28, -rad * 0.4, rad * 0.62],
-      [-rad * 0.5, rad * 0.18, rad * 0.45, rad * 0.58],
-      [rad * 0.1, -rad * 0.32, rad * 0.15, rad * 0.55]
+    const cy = topY + 1.4
+    const layers = [
+      { ly: cy, lr: rad * 1.12, cols: [B_LO, B_MID], inner: 0.15 },
+      { ly: cy + 0.85, lr: rad * 0.92, cols: [B_MID, B_HI], inner: 0.1 },
+      { ly: cy + 1.7, lr: rad * 0.62, cols: [B_HI, B_TIP], inner: 0 }
     ]
-    for (const [bx, by, bz, br] of blobs) {
-      for (let i = 0; i < 34; i++) {
-        const ox = bx + (rng() * 2 - 1) * br
-        const oy = by + (rng() * 2 - 1) * br * 0.66
-        const oz = bz + (rng() * 2 - 1) * br
-        if ((ox / (rad * 1.25)) ** 2 + (oy / (rad * 0.85)) ** 2 + (oz / (rad * 1.25)) ** 2 > 1) continue
-        canopy.push([tx + Math.round(ox), cy + Math.round(oy), tz + Math.round(oz), oy])
-      }
-    }
     const seen = new Set()
-    for (const [px, py, pz, oy] of canopy) {
-      const k = px + ',' + py + ',' + pz
-      if (seen.has(k)) continue
-      seen.add(k)
-      const r = rng()
-      const leafOpts = { sway: 0.45 + rng() * 0.5, sss: 0.85 }
-      if (oy < -rad * 0.35) {
-        vg.add(px, py, pz, r < 0.5 ? C.blossomB : C.blossomC, leafOpts)
-      } else if (oy > rad * 0.4) {
-        vg.add(px, py, pz, r < 0.3 ? '#FFE4EF' : C.blossomA, leafOpts)
-      } else {
-        vg.add(px, py, pz, r < 0.06 ? C.blossomGlow : cols[Math.floor(rng() * 4)],
-          r < 0.06 ? { glow: true, sway: leafOpts.sway } : leafOpts)
+    for (const { ly, lr, cols, inner } of layers) {
+      const steps = Math.max(8, Math.round(lr * 7))
+      for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * Math.PI * 2 + rng() * 0.4
+        const rr = lr * (inner + (1 - inner) * Math.sqrt(rng()))
+        const ox = Math.cos(a) * rr + (rng() - 0.5) * 0.5
+        const oz = Math.sin(a) * rr + (rng() - 0.5) * 0.5
+        const oy = (rng() - 0.5) * 0.55
+        const gx = Math.round(topX * 0.35 + ox), gz = Math.round(topZ * 0.35 + oz)
+        const gy = Math.round(ly + oy)
+        const k = gx + ',' + gy + ',' + gz
+        if (seen.has(k)) continue
+        seen.add(k)
+        const r = rng()
+        const opts = { sway: 0.4 + rng() * 0.5, sss: 0.85 }
+        if (r < 0.05) vg.add(gx, gy, gz, B_GLOW, { glow: true, sway: opts.sway, size: 0.5 })
+        else vg.add(gx, gy, gz, cols[Math.floor(rng() * cols.length)], opts)
       }
     }
-    const hangSpots = canopy.filter(c => c[3] < -rad * 0.2)
-    for (let i = 0; i < Math.min(5, hangSpots.length); i++) {
-      const [hx, hy, hz] = hangSpots[Math.floor(rng() * hangSpots.length)]
-      vg.add(hx, hy - 0.75, hz, C.blossomB, { size: 0.55, sway: 0.9, sss: 0.6 })
-      if (rng() < 0.5) vg.add(hx, hy - 1.35, hz, C.blossomC, { size: 0.4, sway: 1, sss: 0.6 })
+
+    for (const [ax, ay, az] of armTips) {
+      for (let i = 0; i < 5; i++) {
+        const ox = (rng() * 2 - 1) * 0.8, oz = (rng() * 2 - 1) * 0.8
+        vg.add(Math.round(ax + ox), Math.round(ay + 0.4 + rng() * 0.5), Math.round(az + oz),
+          rng() < 0.3 ? B_TIP : B_MID, { size: 0.5, sway: 0.55 + rng() * 0.4, sss: 0.85 })
+      }
     }
+
+    const rimN = Math.max(4, Math.round(rad * 2.2))
+    for (let i = 0; i < rimN; i++) {
+      const a = (i / rimN) * Math.PI * 2 + rng() * 0.5
+      const rr = rad * (0.95 + rng() * 0.25)
+      const hx = Math.round(topX + Math.cos(a) * rr)
+      const hz = Math.round(topZ + Math.sin(a) * rr)
+      const hy = Math.round(cy - 0.3 - rng() * 0.5)
+      vg.add(hx, hy, hz, B_MID, { size: 0.5, sway: 0.8, sss: 0.6 })
+      if (rng() < 0.55) vg.add(hx, hy - 0.55, hz, B_LO, { size: 0.38, sway: 1, sss: 0.6 })
+      if (rng() < 0.25) vg.add(hx, hy - 1.05, hz, B_GLOW, { size: 0.3, sway: 1.1, sss: 0.5 })
+    }
+
     for (let i = 0; i < 7; i++) {
       const a = rng() * Math.PI * 2
       const rr = 1.2 + rng() * 1.6
@@ -561,7 +668,7 @@ export class World {
       const gz = tz + Math.round(Math.sin(a) * rr)
       if (this.surfMain.has(gx + ',' + gz)) {
         vg.add(gx, this.surfMain.get(gx + ',' + gz) + 0.72, gz,
-          rng() < 0.5 ? C.blossomA : C.blossomB, { size: 0.26 })
+          rng() < 0.5 ? B_HI : B_MID, { size: 0.26 })
       }
     }
     this.anchors.trees.push({ x: tx, y: cy + 1, z: tz, rad })
@@ -575,7 +682,7 @@ export class World {
       const x = bx + Math.round((rng() * 2 - 1) * 1.6)
       const z = bz + Math.round((rng() * 2 - 1) * 1.6)
       const d = Math.hypot(x, z)
-      if (d < 7.5 || d > ISLE_R - 1) continue
+      if (d < 7.5 || d > (this.R || ISLE_R) - 1) continue
       const h = 5 + Math.floor(rng() * 3)
       for (let i = 0; i < h; i++)
         vg.add(x, TOP + 1 + i, z, i % 3 === 2 ? C.bambooLight : C.bamboo, { size: 0.42, sway: 0.22 })
@@ -599,10 +706,9 @@ export class World {
         for (let j = -off; j <= off; j++) {
           if (Math.abs(i) === off && Math.abs(j) === off && rng() < 0.5) continue
           const mossy = (l === lv - 1 && rng() < 0.65) || rng() < 0.12
-          const s = 0.78 + rng() * 0.24
-          const jx = (rng() - 0.5) * 0.18, jz = (rng() - 0.5) * 0.18
-          vg.add(sx + i + jx, TOP + 1 + l + (rng() - 0.5) * 0.1, sz + j + jz,
-            mossy ? C.moss : (rng() < 0.5 ? C.stone : C.stoneDeep), { size: s })
+          vg.add(sx + i, TOP + 1 + l, sz + j,
+            mossy ? C.moss : (rng() < 0.5 ? C.stone : C.stoneDeep),
+            { size: 0.92 + rng() * 0.08 })
         }
       if (l < lv - 1 && rng() < 0.6) {
         vg.add(sx + (rng() - 0.5) * 1.4, TOP + 1 + l + 0.62, sz + (rng() - 0.5) * 1.4,
@@ -613,33 +719,36 @@ export class World {
 
   makeToro(px, pz) {
     const vg = this.islandVg
-    vg.add(px, TOP + 1.05, pz, C.stoneDeep, { size: 1.08 })
-    vg.add(px, TOP + 1.9, pz, C.stone, { size: 0.5 })
-    vg.add(px, TOP + 2.7, pz, C.stoneDeep, { size: 0.78 })
-    vg.add(px, TOP + 3.45, pz, '#FFE2A8', { win: true, size: 0.72 })
+    let y = TOP + 1
+    vg.add(px, y, pz, C.stoneDeep, { size: 1.1 }); y += 0.55
+    vg.add(px, y + 0.3, pz, C.stone, { size: 0.6 }); y += 0.6
+    vg.add(px, y + 0.4, pz, C.stoneDeep, { size: 0.8 }); y += 0.8
+    vg.add(px, y + 0.36, pz, '#FFE2A8', { win: true, size: 0.72 })
     for (const [ox, oz] of [[0.34, 0.34], [-0.34, 0.34], [0.34, -0.34], [-0.34, -0.34]]) {
-      vg.add(px + ox, TOP + 3.45, pz + oz, C.woodDark, { size: 0.22 })
+      vg.add(px + ox, y + 0.36, pz + oz, C.woodDark, { size: 0.22 })
     }
-    vg.add(px, TOP + 4.25, pz, C.stoneDeep, { size: 0.95 })
-    vg.add(px, TOP + 4.85, pz, C.stone, { size: 1.12 })
-    vg.add(px, TOP + 5.45, pz, C.stoneDeep, { size: 0.6 })
-    vg.add(px, TOP + 5.95, pz, C.gold, { glow: true, size: 0.28 })
-    this.anchors.toroLights.push(new THREE.Vector3(px, TOP + 3.45, pz))
+    this.anchors.toroLights.push(new THREE.Vector3(px, y + 0.36, pz))
+    y += 0.72
+    vg.add(px, y + 0.475, pz, C.stoneDeep, { size: 0.95 }); y += 0.95
+    vg.add(px, y + 0.56, pz, C.stone, { size: 1.12 }); y += 1.12
+    vg.add(px, y + 0.3, pz, C.stoneDeep, { size: 0.6 }); y += 0.6
+    vg.add(px, y + 0.14, pz, C.gold, { glow: true, size: 0.28 })
   }
 
   makeLotus() {
     const vg = this.islandVg
     const rng = mulberry32(4242)
+    const pr = this.pondR || POND.r
     for (let i = 0; i < 9; i++) {
       const a = rng() * Math.PI * 2
-      const rr = rng() * (POND.r - 1.8)
+      const rr = rng() * Math.max(0.8, pr - 1.8)
       const x = Math.round(POND.x + Math.cos(a) * rr)
       const z = Math.round(POND.z + Math.sin(a) * rr)
       vg.add(x, 9.92, z, C.lotusLeaf, { size: 0.85 })
     }
     for (let i = 0; i < 16; i++) {
       const a = rng() * Math.PI * 2
-      const rr = POND.r - 1.3 + rng() * 0.9
+      const rr = pr - 1.3 + rng() * 0.9
       const x = Math.round(POND.x + Math.cos(a) * rr)
       const z = Math.round(POND.z + Math.sin(a) * rr)
       const key = x + ',' + z
@@ -648,7 +757,7 @@ export class World {
         rng() < 0.4 ? C.moss : (rng() < 0.5 ? C.stone : C.stoneDeep),
         { size: 0.26 + rng() * 0.18 })
     }
-    const spots = [[-4, -3], [-6, -4.5], [-3, -5.5]]
+    const spots = pr > 3.2 ? [[-4, -3], [-6, -4.5], [-3, -5.5]] : [[-4, -3]]
     for (const [fx, fz] of spots) {
       vg.add(fx, 9.9, fz, C.lotusLeaf, { size: 1 })
       const petals = [[0, 0, 0.55], [0, 0, -0.55], [0.55, 0, 0], [-0.55, 0, 0]]
@@ -658,11 +767,14 @@ export class World {
   }
 
   buildWater() {
-    const geo = new THREE.CircleGeometry(POND.r - 0.55, 30)
-    this.waterMat = new THREE.MeshPhongMaterial({
-      color: C.water, transparent: true, opacity: 0.66,
-      shininess: 110, specular: '#CFEFFF'
-    })
+    const pr = this.pondR || POND.r
+    const geo = new THREE.CircleGeometry(pr - 0.55, 30)
+    if (!this.waterMat) {
+      this.waterMat = new THREE.MeshPhongMaterial({
+        color: C.water, transparent: true, opacity: 0.66,
+        shininess: 110, specular: '#CFEFFF'
+      })
+    }
     this.water = new THREE.Mesh(geo, this.waterMat)
     this.water.rotation.x = -Math.PI / 2
     this.water.position.set(POND.x, 9.74, POND.z)
@@ -728,47 +840,8 @@ export class World {
   }
 
   buildClouds() {
-    const rng = mulberry32(555)
-    const mat = new THREE.MeshLambertMaterial({ color: C.cloud })
-    const geo = new THREE.BoxGeometry(1, 1, 1)
-    const makePuff = () => {
-      const g = new THREE.Group()
-      const n = 7 + Math.floor(rng() * 6)
-      for (let i = 0; i < n; i++) {
-        const m = new THREE.Mesh(geo, mat)
-        m.position.set((rng() * 2 - 1) * 3.2, (rng() * 2 - 1) * 1.1, (rng() * 2 - 1) * 1.8)
-        m.scale.setScalar(0.8 + rng() * 1.6)
-        m.scale.y *= 0.6
-        g.add(m)
-      }
-      return g
-    }
-    for (let i = 0; i < 4; i++) {
-      const rec = {
-        g: makePuff(), ang: rng() * Math.PI * 2,
-        rad: 24 + rng() * 7, y: 7 + rng() * 11,
-        spd: 0.01 + rng() * 0.014, under: false
-      }
-      this.clouds.push(rec)
-      this.root.add(rec.g)
-    }
-    for (let i = 0; i < 2; i++) {
-      const rec = { g: makePuff(), x: (i ? 6 : -5), y: -2.5 - i, spd: 0, under: true, ph: rng() * 6 }
-      this.clouds.push(rec)
-      this.root.add(rec.g)
-    }
-    for (let i = 0; i < 6; i++) {
-      const rec = {
-        g: makePuff(), ang: rng() * Math.PI * 2,
-        rad: 18 + rng() * 10, y: 1.5 + rng() * 4,
-        spd: 0.008 + rng() * 0.012, under: false
-      }
-      rec.g.visible = false
-      this.cloudSeaPuffs.push(rec.g)
-      this.clouds.push(rec)
-      this.root.add(rec.g)
-    }
-    this.clouds.forEach(c => { if (!c.under) c.g.scale.multiplyScalar(c.y < 6 ? 1.5 : 1) })
+    this.clouds = []
+    this.cloudSeaPuffs = []
   }
 
   buildPagoda(tier) {
@@ -785,6 +858,14 @@ export class World {
         vg.add(-5, TOP + 0.85, i, C.column, { size: 0.34 })
         vg.add(5, TOP + 0.85, i, C.column, { size: 0.34 })
       }
+    }
+    for (const sx of [-0.35, 0.35]) {
+      vg.add(sx, TOP + 0.55, 5.9, C.stone, { size: 0.85 })
+      vg.add(sx, TOP + 0.18, 6.75, C.stoneDeep, { size: 0.85 })
+    }
+    for (const sx of [-1.6, 1.6]) {
+      vg.add(sx, TOP + 1.55, 5.6, '#FFB36B', { glow: true, size: 0.3 })
+      vg.add(sx, TOP + 1.2, 5.6, C.stoneDeep, { size: 0.34 })
     }
     const stories = 3 + tier
     let y = TOP + 1
@@ -824,7 +905,7 @@ export class World {
         const ox = cx2 > 0 ? 0.16 : -0.16
         const oz = cz2 > 0 ? 0.16 : -0.16
         vg.add(cx2 + ox, y + 2.42, cz2 + oz, C.woodDark, { size: 0.48 })
-        vg.add(cx2 + ox, y + 2.72, cz2 + oz, C.wood, { size: 0.36 })
+        vg.add(cx2 + ox, y + 2.76, cz2 + oz, C.wood, { size: 0.4 })
       }
       y = this.buildRoof(vg, y + 3, w)
     }
@@ -861,6 +942,10 @@ export class World {
           vg.add(hw, y - 0.32, e, C.trim, { size: 0.55 })
           vg.add(-hw, y - 0.32, e, C.trim, { size: 0.55 })
         }
+        for (const [mx, mz] of [[0, hw], [0, -hw], [hw, 0], [-hw, 0]]) {
+          vg.add(mx, y + 0.42, mz, C.trim, { size: 0.5 })
+          vg.add(mx, y + 0.88, mz, C.gold, { glow: true, size: 0.24 })
+        }
       }
       y++
       rw -= 2
@@ -877,11 +962,14 @@ export class World {
     return y
   }
 
-  buildDawnIsle() {
+  buildDawnIsle(R = 7) {
+    if (this.isleVg) this.isleVg.destroy()
+    this.surfDawn.clear()
     const vg = this.sys.group(this.isleGroup)
     this.isleVg = vg
     const rng = mulberry32(2024)
-    const ITOP = 11, R = 7, CX = 34, CZ = -6
+    const ITOP = 11, CX = 34, CZ = -6
+    this.dawnR = R
 
     for (let x = -R; x <= R; x++)
       for (let z = -R; z <= R; z++) {
@@ -895,35 +983,6 @@ export class World {
       }
 
     vg.box(CX - 2, ITOP, CZ - 2, 5, 1, 5, C.sand)
-
-    const px = CX, pz = CZ
-    for (const dz of [-2, 2]) {
-      vg.add(px, ITOP + 0.15, pz + dz, C.toriiDark, { size: 0.92 })
-      for (let i = 0; i < 4; i++) vg.add(px, ITOP + 1 + i, pz + dz, i < 3 ? C.torii : C.toriiDark)
-    }
-    vg.box(px - 1, ITOP + 3.6, pz - 2, 1, 1, 5, C.torii)
-    vg.box(px, ITOP + 4.4, pz - 1, 1, 1, 3, C.toriiDark)
-    for (let z = -2; z <= 2; z++) vg.add(px, ITOP + 5, pz + z, C.torii)
-    vg.add(px, ITOP + 5.55, pz - 2, C.toriiDark, { size: 0.7 })
-    vg.add(px, ITOP + 5.55, pz + 2, C.toriiDark, { size: 0.7 })
-    vg.add(px, ITOP + 5.38, pz - 1, C.torii, { size: 0.85 })
-    vg.add(px, ITOP + 5.38, pz + 1, C.torii, { size: 0.85 })
-    vg.add(px, ITOP + 6.1, pz, C.gold, { glow: true, size: 0.45 })
-
-    vg.add(CX + 3, ITOP + 1, CZ, C.stone, { size: 1 })
-    vg.add(CX + 3, ITOP + 1, CZ - 1, C.stone, { size: 1 })
-
-    const tx = CX - 3, tz = CZ + 3
-    for (let i = 0; i < 4; i++) vg.add(tx, ITOP + 1 + i, tz, i % 2 ? C.wood : C.woodDark)
-    const cols = [C.blossomA, C.blossomB, C.blossomC]
-    for (let i = 0; i < 26; i++) {
-      const ox = (rng() * 2 - 1) * 1.9, oz = (rng() * 2 - 1) * 1.9, oy = (rng() * 2 - 1) * 1.1
-      if ((ox / 2.2) ** 2 + (oy / 1.4) ** 2 + (oz / 2.2) ** 2 > 1) continue
-      vg.add(tx + Math.round(ox), ITOP + 5 + Math.round(oy), tz + Math.round(oz),
-        rng() < 0.08 ? C.blossomGlow : cols[Math.floor(rng() * 3)],
-        rng() < 0.08 ? { glow: true } : {})
-    }
-    this.anchors.trees.push({ x: tx, y: ITOP + 6, z: tz, rad: 2.2 })
 
     const b0 = new THREE.Vector3(14.8, 10.9, 0.5)
     const b2 = new THREE.Vector3(30.5, 12.0, -5.5)
@@ -961,19 +1020,40 @@ export class World {
       }
     }
 
-    for (let i = 0; i < 40; i++) {
-      const a = rng() * Math.PI * 2, rr = Math.sqrt(rng()) * (R - 1.5)
-      const x = CX + Math.cos(a) * rr, z = CZ + Math.sin(a) * rr
-      if (Math.abs(x - CX) <= 2 && Math.abs(z - CZ) <= 2) continue
-      if (rng() < 0.6) vg.add(x, ITOP + 0.68, z, C.grassD, { size: 0.3 })
-      else vg.add(x, ITOP + 0.7, z, '#FF9EC0', { size: 0.32 })
-    }
-
     vg.build()
   }
 
   setPagodaTier(tier) {
-    this.buildPagoda(Math.min(tier, 4))
+    const t = Math.min(Math.max(tier, 1), 5)
+    this.buildPagoda(t - 1)
+  }
+
+  setDawnExp(n) {
+    const R = 7 + 2 * Math.max(0, Math.min(40, Math.floor(Number(n) || 0)))
+    if (R === this.dawnR) return
+    this.buildDawnIsle(R)
+    if (this.isleRevealed) this.isleGroup.visible = true
+  }
+
+  setJadeExp(n) {
+    const R = 8 + 2 * Math.max(0, Math.min(40, Math.floor(Number(n) || 0)))
+    if (R === this.jadeR) return
+    this.buildJadeIsle(R)
+    if (this.jadeRevealed) this.jadeGroup.visible = true
+  }
+
+  setLotusExp(n) {
+    const R = 6 + 2 * Math.max(0, Math.min(40, Math.floor(Number(n) || 0)))
+    if (R === this.lotusR) return
+    this.buildLotusIsle(R)
+    if (this.lotusRevealed) this.lotusGroup.visible = true
+  }
+
+  setStarExp(n) {
+    const e = Math.max(0, Math.min(16, Math.floor(Number(n) || 0)))
+    if (e === this.starExp) return
+    this.buildStarPeak(e)
+    if (this.starRevealed) this.starGroup.visible = true
   }
 
   revealBridge(animated) {
@@ -989,18 +1069,21 @@ export class World {
     }
   }
 
-  buildJadeIsle() {
+  buildJadeIsle(R = 8) {
     if (!this.jadeGroup) {
       this.jadeGroup = new THREE.Group()
       this.jadeGroup.visible = false
       this.root.add(this.jadeGroup)
     }
+    if (this.jadeVg) this.jadeVg.destroy()
+    this.surfJade.clear()
     const vg = this.sys.group(this.jadeGroup)
     this.jadeVg = vg
     const rng = mulberry32(31416)
-    const ITOP = 12, R = 8, CX = -40, CZ = 14
+    const ITOP = 12, CX = -40, CZ = 14
+    this.jadeR = R
 
-    const JADE = '#A8E6C8', JADE_D = '#7CC9A8', ROOF_J = '#4FB8A8'
+    const JADE = '#A8E6C8', JADE_D = '#7CC9A8'
 
     for (let x = -R; x <= R; x++)
       for (let z = -R; z <= R; z++) {
@@ -1015,50 +1098,10 @@ export class World {
         if (d < 4.2 && d >= 2.2) vg.add(CX + x, ITOP, CZ + z, ((x + z) & 1) ? JADE : JADE_D)
       }
 
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2
-      const px = CX + Math.round(Math.cos(a) * 3), pz = CZ + Math.round(Math.sin(a) * 3)
-      for (let hgt = 1; hgt <= 4; hgt++) vg.add(px, ITOP + hgt, pz, hgt === 4 ? JADE_D : JADE)
-    }
-    for (let i = 0; i < 14; i++) {
-      const a = (i / 14) * Math.PI * 2 + 0.22
-      const rx = Math.cos(a) * 4, rz = Math.sin(a) * 4
-      if (Math.hypot(rx, rz) > 4.1) continue
-      vg.add(CX + rx, ITOP + 1.5, CZ + rz, JADE_D, { size: 0.28 })
-      vg.add(CX + rx, ITOP + 1.92, CZ + rz, '#DFF6EA', { glow: true, size: 0.16 })
-    }
-    for (const [lx, lz] of [[2.4, 2.4], [-2.4, -2.4], [2.4, -2.4], [-2.4, 2.4]]) {
-      vg.add(CX + lx, ITOP + 4.35, CZ + lz, '#FFD9A0', { glow: true, size: 0.32 })
-      vg.add(CX + lx, ITOP + 4.72, CZ + lz, C.gold, { size: 0.14 })
-    }
-    for (let rw = 9; rw >= 3; rw -= 2) {
-      const hw = Math.floor(rw / 2)
-      const ry = ITOP + 5 + (9 - rw) / 2
-      for (let x = -hw; x <= hw; x++)
-        for (let z = -hw; z <= hw; z++) {
-          const outer = Math.abs(x) === hw || Math.abs(z) === hw
-          vg.add(CX + x, ry, CZ + z, outer ? C.trim : (((x + z) & 1) ? ROOF_J : '#66C9B8'))
-        }
-    }
-    vg.add(CX, ITOP + 9, CZ, C.gold, { glow: true, size: 0.9 })
-
-    for (const [ox, oz] of [[-5, -4], [5, 3], [-4, 5], [6, -5]]) {
-      vg.add(CX + ox, ITOP + 1.6, CZ + oz, '#CFE0FF', { glow: true, size: 0.55 })
-      vg.add(CX + ox, ITOP + 1, CZ + oz, C.stoneDeep, { size: 0.7 })
-    }
-    for (let i = 0; i < 26; i++) {
-      const a = rng() * Math.PI * 2, rr = 4.5 + rng() * 2.6
-      const x = CX + Math.round(Math.cos(a) * rr), z = CZ + Math.round(Math.sin(a) * rr)
-      if (!this.surfJade.has(x + ',' + z)) continue
-      if (rng() < 0.5) vg.add(x, ITOP + 0.68, z, '#BFFFE0', { size: 0.3 })
-      else vg.add(x, ITOP + 0.72, z, '#FFF0B8', { glow: true, size: 0.32 })
-    }
-    vg.add(CX + 2, ITOP + 1, CZ + 2, '#FFE9F2', { size: 0.95 })
     this.anchors.rabbitJade = { x: CX + 2, y: ITOP + 1.62, z: CZ + 2 }
 
     vg.build()
   }
-
   revealJade(animated) {
     if (this.jadeRevealed) return
     this.jadeRevealed = true
@@ -1082,24 +1125,24 @@ export class World {
     this.surfMain.delete(px + ',' + pz)
     const rng = mulberry32(808)
 
-    vg.add(px, topY + 0.3, pz + 1, '#6E4527', { size: 0.5 })
-    vg.add(px - 1, topY + 0.3, pz, '#6E4527', { size: 0.45 })
-    vg.add(px + 0.8, topY + 0.3, pz - 0.9, '#6E4527', { size: 0.45 })
+    vg.add(px, topY + 0.3, pz + 0.8, '#6E4527', { size: 0.6 })
+    vg.add(px - 0.8, topY + 0.3, pz, '#6E4527', { size: 0.55 })
+    vg.add(px, topY + 0.3, pz - 0.8, '#6E4527', { size: 0.55 })
 
-    const taper = [1.0, 0.88, 0.74]
+    const taper = [1.05, 0.98, 0.92]
     for (let i = 0; i < 3; i++) vg.add(px, topY + 1 + i, pz, i % 2 ? '#A9714B' : '#8A5A3B', { size: taper[i] })
 
-    const branches = []
     for (let a = 0; a < 4; a++) {
-      const ang = (a / 4) * Math.PI * 2 + rng() * 0.6
+      const ang = (a / 4) * Math.PI * 2
       const ax = Math.round(Math.cos(ang)), az = Math.round(Math.sin(ang))
-      vg.add(px + ax, topY + 3.4, pz + az, '#8A5A3B', { size: 0.5 })
-      vg.add(px + ax * 2, topY + 4.1, pz + az * 2, '#8A5A3B', { size: 0.42 })
-      branches.push([ax * 2, az * 2])
+      const horiz = a % 2 === 0 ? [ax, 0] : [0, az]
+      vg.add(px + horiz[0], topY + 3.25, pz + horiz[1], '#8A5A3B', { size: 0.7 })
+      vg.add(px + horiz[0] * 2, topY + 3.25, pz + horiz[1] * 2, '#8A5A3B', { size: 0.55 })
+      vg.add(px + horiz[0] * 2, topY + 3.9, pz + horiz[1] * 2, '#6FBF73', { size: 0.6, sway: 0.5, sss: 0.7 })
     }
 
     const leafCols = ['#7FC96B', '#9FD88F', '#C9E89A', '#FFD9EC']
-    const cy = topY + 5.2
+    const cy = topY + 4.9
     const canopyCells = []
     const blobs = [
       [0, 0, 0, 2.1],
@@ -1250,5 +1293,6 @@ export class World {
     if (this.pagodaVg) this.pagodaVg.destroy()
     this.isleVg.destroy()
     if (this.jadeVg) this.jadeVg.destroy()
+    if (this.water) { this.water.geometry.dispose(); this.root.remove(this.water) }
   }
 }

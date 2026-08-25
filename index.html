@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>🏮 Sakura Sky Garden</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏮</text></svg>" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Sky Garden" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -18,26 +25,40 @@
     <div id="counter" class="panel">
       <div class="essence"><span class="eicon">✨</span><span id="essenceVal">0</span><span id="comboBadge" class="hidden">×1.0</span><span id="buffPill" class="hidden">🔥 ×2</span><span id="lvlVal" class="lvltag">Lv 1</span></div>
       <div class="xpbar"><div id="xpFill"></div></div>
-      <div class="rate"><span id="cloudState" class="hidden">☁️</span><span id="rateVal">+0/s</span><span>·</span><span id="tapVal">tap +1</span></div>
+      <div class="rate"><span id="cloudState" class="hidden">☁️</span><span id="rateVal">+0/s</span><span>·</span><span id="tapVal">tap +1</span><span id="perkPill" class="hidden"></span></div>
     </div>
 
-    <div id="topRight" class="panel">
-      <button id="btnSound" class="iconbtn" title="Sound">🔊</button>
-      <button id="btnTime" class="iconbtn" title="Time flow">1×</button>
-      <button id="btnPhoto" class="iconbtn photo-exempt" title="Photo mode">📷</button>
-      <button id="btnFull" class="iconbtn" title="Fullscreen (F)">⛶</button>
-      <button id="btnHelp" class="iconbtn" title="Help & stats">?</button>
+    <div id="guidePanel" class="panel hidden">
+      <div class="phead"><span>🌱 Panduan Pemula</span><button class="pclose" id="btnGuideClose" title="Tutup">✕</button></div>
+      <div id="guideList"></div>
+      <div class="dim" style="font-size:.68rem;margin-top:8px;line-height:1.4">Selesaikan 4 langkah ini untuk mengenal tamanmu.</div>
     </div>
 
     <div id="helpPanel" class="panel hidden">
       <button class="pclose" id="btnCloseHelp" title="Close">✕</button>
       <h3>🌸 Sakura Sky Garden</h3>
-      <p><b>Tap / click</b> the garden to gather spirit essence.</p>
-      <p><b>Drag</b> to orbit · <b>scroll / pinch</b> to zoom · <b>right-drag</b> to pan.</p>
+      <p><b>👆 Tap</b> taman untuk mengumpulkan essence · drag memutar kamera · scroll zoom.</p>
       <p class="dim" id="statLines"></p>
+      <div class="asct" style="margin-top:10px">📜 Riwayat Taman</div>
+      <div id="histFilters" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px"></div>
+      <div id="histList" class="hist"></div>
+      <div class="asct" style="margin-top:12px">🌸 Toko Bunga Abadi</div>
+      <div id="flowerShop"></div>
+      <div class="asct" style="margin-top:12px">📅 Tantangan Harian</div>
+      <div id="dailyList"></div>
+      <div class="asct" style="margin-top:12px">🏅 Papan Peringkat</div>
+      <div id="lbList" class="hist"><div class="dim">Memuat…</div></div>
+      <div class="bprows"><button id="btnLbRefresh" class="mini">↻ Muat ulang</button></div>
+      <div style="line-height:1.6;font-size:.72rem">
+        <p><b>🏪 Toko:</b> 1 pembelian = 1 salinan. Tekan <b>＋</b> → atur rotasi & ukuran di panel kecil → klik tanah.</p>
+        <p><b>👆 Tahan klik</b> objek terpasang: geser, putar, skala 40–300%, 📦 simpan ke storage, 🗑 hapus (refund 50%).</p>
+        <p><b>🗺️ Domain:</b> perluas pulau ∞ + buka 4 pulau baru — semua tanah kosong untukmu isi.</p>
+        <p><b>🎨 Forge</b>: prompt → model voxel. Preset jalan offline.</p>
+        <p><b>🔬 Riset Progres</b> di Account: mulai dari nol, essence & bintang tetap aman.</p>
+      </div>
       <div class="ascbox">
         <div class="asct">Immortal Stars · <span id="starsVal">⭐ 0</span></div>
-        <div class="dim">Permanent ×<span id="starMult">1.00</span> to all rates · +3 build slots per ascension</div>
+        <div class="dim">Permanent ×<span id="starMult">1.00</span> ke semua rate · +3 slot per ascension</div>
         <div class="xpbar"><div id="ascFill"></div></div>
         <div class="dim" id="ascHint"></div>
         <button id="btnAscend" class="danger asc">🔒 Ascend at Lv 12</button>
@@ -54,14 +75,53 @@
     </div>
 
     <div id="buildPanel" class="hidden">
-      <div class="phead"><span>🔨 Build the Garden</span><button class="pclose" id="btnCloseBuild" title="Close">✕</button></div>
+      <div class="phead"><span>🏪 Toko Aset Taman</span><button class="pclose" id="btnCloseBuild" title="Close">✕</button></div>
+      <canvas id="storePreview" width="150" height="150"></canvas>
+      <div id="buildChips"></div>
       <div id="buildList"></div>
       <div id="slotsInfo" class="dim"></div>
       <div id="buildHint" class="hidden"></div>
       <div class="bprows">
-        <button id="btnDeleteMode" class="mini">🗑 Remove: OFF</button>
+        <button id="btnDeleteMode" class="mini">🗑 Hapus: OFF</button>
+        <button id="btnManageMode" class="mini">🎛 Kelola Objek: OFF</button>
         <button id="btnBuildDone" class="mini done">✓ Done</button>
       </div>
+    </div>
+
+    <div id="placePanel" class="panel hidden">
+      <div class="phead"><span id="placeName">Menempatkan…</span><button class="pclose" id="btnPlaceCancel" title="Batal (Esc)">✕</button></div>
+      <div class="bprows">
+        <button id="btnPRotL" class="mini" title="Putar kiri">⟲</button>
+        <button id="btnPRotR" class="mini" title="Putar kanan">⟳</button>
+        <span class="vsep"></span>
+        <button id="btnPScaleD" class="mini" title="Perkecil">➖</button>
+        <span id="placeScale">100%</span>
+        <button id="btnPScaleU" class="mini" title="Perbesar">➕</button>
+      </div>
+      <div class="dim" style="font-size:.7rem;margin-top:6px;line-height:1.4">Klik tanah untuk menempatkan · R memutar 15°</div>
+    </div>
+
+    <div id="objPanel" class="panel hidden">
+      <div class="phead"><span id="objName">Objek</span><button class="pclose" id="btnObjClose" title="Selesai">✕</button></div>
+      <div class="bprows">
+        <button id="btnObjRotL" class="mini" title="Putar kiri">⟲</button>
+        <button id="btnObjRotR" class="mini" title="Putar kanan">⟳</button>
+        <span id="objScale">100%</span>
+        <button id="btnObjScaleD" class="mini" title="Perkecil">➖</button>
+        <button id="btnObjScaleU" class="mini" title="Perbesar">➕</button>
+      </div>
+      <div class="bprows">
+        <button id="btnObjSnap" class="mini">Grid 1.0</button>
+        <button id="btnObjFree" class="mini">🕊 Bebas: OFF</button>
+      </div>
+      <div id="objCoord" class="dim" style="text-align:center;margin-top:4px;min-height:14px"></div>
+      <div class="bprows">
+        <button id="btnObjMove" class="mini">🎯 Geser</button>
+        <button id="btnObjStore" class="mini done">📦 Simpan</button>
+        <button id="btnObjDelete" class="mini">🗑 Hapus</button>
+      </div>
+      <button id="btnObjUp" class="mini done" style="width:100%;margin-top:8px">⬆ Upgrade</button>
+      <div class="dim" style="font-size:.7rem;margin-top:6px;line-height:1.4">Klik tanah untuk memindahkan · tombol R untuk memutar</div>
     </div>
 
     <div id="questsPanel" class="hidden">
@@ -73,12 +133,83 @@
       <div class="dim" style="margin:4px 6px">Feats are permanent milestones</div>
     </div>
 
+    <div id="authPanel" class="panel hidden">
+      <button class="pclose" id="btnCloseAuth" title="Close">✕</button>
+      <h3>👤 Account</h3>
+      <div id="authLogged" class="hidden">
+        <div class="dim" style="margin-bottom:4px">Signed in as</div>
+        <div id="authEmail" class="authmail"></div>
+        <label class="authlabel">Display name
+          <input type="text" id="inpName" maxlength="24" placeholder="Gardener name" autocomplete="nickname">
+        </label>
+        <div class="bprows">
+          <button id="btnSaveName" class="mini done">💾 Save name</button>
+          <button id="btnLogout" class="mini">⏏ Log out</button>
+        </div>
+      </div>
+      <div id="authForm">
+        <label class="authlabel">Email
+          <input type="email" id="inpEmail" placeholder="you@example.com" autocomplete="email">
+        </label>
+        <label class="authlabel">Password
+          <input type="password" id="inpPass" placeholder="min. 6 characters" autocomplete="current-password">
+        </label>
+        <div id="authMsg" class="dim authmsg"></div>
+        <div class="bprows">
+          <button id="btnSignIn" class="mini done">Sign in</button>
+          <button id="btnSignUp" class="mini">Create account</button>
+        </div>
+        <div class="dim authhint">You're playing as a guest — progress lives on this device until you sign in.</div>
+      </div>
+      <div style="border-top:1px solid rgba(120,90,150,.25);margin-top:12px;padding-top:10px">
+        <button id="btnRiset" class="danger" style="width:100%">🔬 Riset Progres</button>
+        <div class="dim" style="font-size:.68rem;margin-top:6px;text-align:center;line-height:1.4">Reset total: level, semua bangunan, blessings, pulau/domain & kepemilikan toko kembali ke nol. Hanya essence, bintang & statistik yang tetap.</div>
+      </div>
+    </div>
+
+    <div id="forgePanel" class="panel hidden">
+      <button class="pclose" id="btnCloseForge" title="Close">✕</button>
+      <h3>🎨 Voxel Forge</h3>
+      <div class="dim" style="font-size:.72rem;line-height:1.4">Teks → voxel langsung. Preset prosedural jalan offline; prompt bebas butuh Gemini key (disimpan hanya di perangkat ini).</div>
+      <label class="authlabel">Preset inspirasi
+        <select id="forgePreset"></select>
+      </label>
+      <label class="authlabel">Prompt
+        <input type="text" id="forgePrompt" placeholder="pohon sakura realistis, mech robot…" maxlength="160">
+      </label>
+      <label class="authlabel">Resolusi grid voxel
+        <select id="forgeGrid">
+          <option value="32">32 × 32 × 32 (Standar HD)</option>
+          <option value="40" selected>40 × 40 × 40 (Micro HD — rekomendasi)</option>
+          <option value="48">48 × 48 × 48 (Ultra Detail)</option>
+          <option value="60">60 × 60 × 60 (Extreme Micro)</option>
+        </select>
+      </label>
+      <div class="bprows">
+        <button id="btnForgeGo" class="mini done">🪄 Generate</button>
+        <button id="btnForgeEnhance" class="mini">✨ Perjelas</button>
+      </div>
+      <canvas id="forgeCanvas" width="240" height="240"></canvas>
+      <div id="forgeMsg" class="dim authmsg"></div>
+      <div class="bprows">
+        <button id="btnForgePlace" class="mini done">🌱 Place</button>
+        <button id="btnForgeDl" class="mini">⤓ .vox</button>
+        <button id="btnForgeKeys" class="mini">🔑 Key</button>
+      </div>
+      <div id="forgeKeys" class="hidden">
+        <label class="authlabel">Gemini API key (prompt bebas, gratis)
+          <input type="password" id="keyGemini" placeholder="AIza…" autocomplete="off">
+        </label>
+        <div class="bprows"><button id="btnForgeSaveKeys" class="mini done">💾 Save key</button></div>
+      </div>
+    </div>
+
     <div id="gamebar">
       <button id="btnUpgrades" class="gbtn" title="Blessings shop">
         <span class="gi">✨</span><span class="gl">Blessings</span>
       </button>
-      <button id="btnBuild" class="gbtn hidden" title="Build mode">
-        <span class="gi">🔨</span><span class="gl">Build</span>
+      <button id="btnBuild" class="gbtn" title="Toko aset & domain pulau">
+        <span class="gi">🏪</span><span class="gl">Toko</span>
       </button>
       <button id="btnQuests" class="gbtn" title="Garden tasks">
         <span class="gi">📜</span><span class="gl">Tasks</span>
@@ -96,11 +227,20 @@
       <button id="btnPhoto" class="gbtn photo-exempt" title="Photo mode">
         <span class="gi">📷</span><span class="gl">Photo</span>
       </button>
+      <button id="btnPhotoShot" class="gbtn photo-exempt" title="Simpan foto taman">
+        <span class="gi">📸</span><span class="gl">Shot</span>
+      </button>
       <button id="btnFull" class="gbtn" title="Fullscreen (F)">
         <span class="gi" id="fullVal">⛶</span><span class="gl">Full</span>
       </button>
       <button id="btnHelp" class="gbtn" title="Help & stats">
         <span class="gi">?</span><span class="gl">Help</span>
+      </button>
+      <button id="btnAccount" class="gbtn photo-exempt" title="Account">
+        <span class="gi" id="accountIcon">👤</span><span class="gl" id="accountLabel">Guest</span><span id="rankBadge" class="hidden">🏅</span>
+      </button>
+      <button id="btnForge" class="gbtn photo-exempt" title="Voxel Forge — AI asset creator">
+        <span class="gi">🎨</span><span class="gl">Forge</span>
       </button>
     </div>
 

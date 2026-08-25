@@ -1,6 +1,6 @@
 const ITEMS = [
   { key: 'upgrades', icon: '✨', label: 'Blessings' },
-  { key: 'build', icon: '🔨', label: 'Build' },
+  { key: 'build', icon: '🏪', label: 'Toko' },
   { key: 'tasks', icon: '📜', label: 'Tasks' },
   { key: 'photo', icon: '📷', label: 'Photo' },
   { key: 'help', icon: '?', label: 'Help' }

@@ -1,0 +1,1112 @@
+{
+  "categories": [
+    {
+      "id": "buildings",
+      "name": "Bangunan",
+      "icon": "🏯",
+      "base": 1200,
+      "minLv": 1
+    },
+    {
+      "id": "nature",
+      "name": "Alam",
+      "icon": "🌳",
+      "base": 350,
+      "minLv": 1
+    },
+    {
+      "id": "decor",
+      "name": "Dekorasi",
+      "icon": "🏮",
+      "base": 600,
+      "minLv": 1
+    },
+    {
+      "id": "lights",
+      "name": "Cahaya",
+      "icon": "✨",
+      "base": 450,
+      "minLv": 1
+    },
+    {
+      "id": "fauna",
+      "name": "Fauna",
+      "icon": "🦊",
+      "base": 500,
+      "minLv": 1
+    }
+  ],
+  "items": [
+    {
+      "id": "buildings/benteng_batu",
+      "name": "Benteng Batu",
+      "cat": "buildings",
+      "file": "/models/store/buildings/benteng_batu.vox",
+      "preview": "/models/store/previews/buildings__benteng_batu.png",
+      "price": 9780,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        33,
+        60,
+        34
+      ],
+      "voxels": 24714
+    },
+    {
+      "id": "buildings/cottage_kecil",
+      "name": "Cottage Kecil",
+      "cat": "buildings",
+      "file": "/models/store/buildings/cottage_kecil.vox",
+      "preview": "/models/store/previews/buildings__cottage_kecil.png",
+      "price": 9750,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        58,
+        59,
+        58
+      ],
+      "voxels": 47586
+    },
+    {
+      "id": "buildings/dermaga_udara",
+      "name": "Dermaga Udara",
+      "cat": "buildings",
+      "file": "/models/store/buildings/dermaga_udara.vox",
+      "preview": "/models/store/previews/buildings__dermaga_udara.png",
+      "price": 8790,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        46,
+        53
+      ],
+      "voxels": 30287
+    },
+    {
+      "id": "buildings/dermaga_udara_2",
+      "name": "Dermaga Udara 2",
+      "cat": "buildings",
+      "file": "/models/store/buildings/dermaga_udara_2.vox",
+      "preview": "/models/store/previews/buildings__dermaga_udara_2.png",
+      "price": 7480,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        54,
+        50,
+        55
+      ],
+      "voxels": 44485
+    },
+    {
+      "id": "buildings/dermaga_udara_3",
+      "name": "Dermaga Udara 3",
+      "cat": "buildings",
+      "file": "/models/store/buildings/dermaga_udara_3.vox",
+      "preview": "/models/store/previews/buildings__dermaga_udara_3.png",
+      "price": 10680,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        51,
+        51
+      ],
+      "voxels": 29621
+    },
+    {
+      "id": "buildings/dermaga_udara_4",
+      "name": "Dermaga Udara 4",
+      "cat": "buildings",
+      "file": "/models/store/buildings/dermaga_udara_4.vox",
+      "preview": "/models/store/previews/buildings__dermaga_udara_4.png",
+      "price": 8070,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        51,
+        54
+      ],
+      "voxels": 28767
+    },
+    {
+      "id": "buildings/gerbang_tradisional_jepang",
+      "name": "Gerbang Tradisional Jepang",
+      "cat": "buildings",
+      "file": "/models/store/buildings/gerbang_tradisional_jepang.vox",
+      "preview": "/models/store/previews/buildings__gerbang_tradisional_jepang.png",
+      "price": 6910,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        59,
+        9
+      ],
+      "voxels": 9104
+    },
+    {
+      "id": "buildings/kincir_air_gantung",
+      "name": "Kincir Air Gantung",
+      "cat": "buildings",
+      "file": "/models/store/buildings/kincir_air_gantung.vox",
+      "preview": "/models/store/previews/buildings__kincir_air_gantung.png",
+      "price": 6150,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        55,
+        59,
+        55
+      ],
+      "voxels": 31864
+    },
+    {
+      "id": "buildings/kincir_air_tradisional",
+      "name": "Kincir Air Tradisional",
+      "cat": "buildings",
+      "file": "/models/store/buildings/kincir_air_tradisional.vox",
+      "preview": "/models/store/previews/buildings__kincir_air_tradisional.png",
+      "price": 9880,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        55,
+        56,
+        55
+      ],
+      "voxels": 33581
+    },
+    {
+      "id": "buildings/kincir_angin",
+      "name": "Kincir Angin",
+      "cat": "buildings",
+      "file": "/models/store/buildings/kincir_angin.vox",
+      "preview": "/models/store/previews/buildings__kincir_angin.png",
+      "price": 9960,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        27,
+        60,
+        26
+      ],
+      "voxels": 16148
+    },
+    {
+      "id": "buildings/kuil_altar_langit",
+      "name": "Kuil Altar Langit",
+      "cat": "buildings",
+      "file": "/models/store/buildings/kuil_altar_langit.vox",
+      "preview": "/models/store/previews/buildings__kuil_altar_langit.png",
+      "price": 7180,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        57,
+        60,
+        57
+      ],
+      "voxels": 55493
+    },
+    {
+      "id": "buildings/menara_pengawas",
+      "name": "Menara Pengawas",
+      "cat": "buildings",
+      "file": "/models/store/buildings/menara_pengawas.vox",
+      "preview": "/models/store/previews/buildings__menara_pengawas.png",
+      "price": 9960,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        25,
+        60,
+        31
+      ],
+      "voxels": 15808
+    },
+    {
+      "id": "buildings/paviliun_meditasi",
+      "name": "Paviliun Meditasi",
+      "cat": "buildings",
+      "file": "/models/store/buildings/paviliun_meditasi.vox",
+      "preview": "/models/store/previews/buildings__paviliun_meditasi.png",
+      "price": 7000,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        43,
+        60,
+        48
+      ],
+      "voxels": 25769
+    },
+    {
+      "id": "buildings/rumah_kayu_klasik",
+      "name": "Rumah Kayu Klasik",
+      "cat": "buildings",
+      "file": "/models/store/buildings/rumah_kayu_klasik.vox",
+      "preview": "/models/store/previews/buildings__rumah_kayu_klasik.png",
+      "price": 10500,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        47,
+        60,
+        54
+      ],
+      "voxels": 52379
+    },
+    {
+      "id": "nature/batu_taman_ishi",
+      "name": "Batu Taman Ishi",
+      "cat": "nature",
+      "file": "/models/store/nature/batu_taman_ishi.vox",
+      "preview": "/models/store/previews/nature__batu_taman_ishi.png",
+      "price": 1830,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        55,
+        28,
+        55
+      ],
+      "voxels": 13060
+    },
+    {
+      "id": "nature/batu_taman_ishi_2",
+      "name": "Batu Taman Ishi 2",
+      "cat": "nature",
+      "file": "/models/store/nature/batu_taman_ishi_2.vox",
+      "preview": "/models/store/previews/nature__batu_taman_ishi_2.png",
+      "price": 2090,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        55,
+        34,
+        52
+      ],
+      "voxels": 6306
+    },
+    {
+      "id": "nature/batu_taman_ishi_3",
+      "name": "Batu Taman Ishi 3",
+      "cat": "nature",
+      "file": "/models/store/nature/batu_taman_ishi_3.vox",
+      "preview": "/models/store/previews/nature__batu_taman_ishi_3.png",
+      "price": 3330,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        59,
+        44,
+        59
+      ],
+      "voxels": 22467
+    },
+    {
+      "id": "nature/batu_taman_ishi_4",
+      "name": "Batu Taman Ishi 4",
+      "cat": "nature",
+      "file": "/models/store/nature/batu_taman_ishi_4.vox",
+      "preview": "/models/store/previews/nature__batu_taman_ishi_4.png",
+      "price": 2410,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        43,
+        60
+      ],
+      "voxels": 23570
+    },
+    {
+      "id": "nature/kebun_bunga",
+      "name": "Kebun Bunga",
+      "cat": "nature",
+      "file": "/models/store/nature/kebun_bunga.vox",
+      "preview": "/models/store/previews/nature__kebun_bunga.png",
+      "price": 2750,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        55,
+        44,
+        55
+      ],
+      "voxels": 24503
+    },
+    {
+      "id": "nature/kebun_bunga_2",
+      "name": "Kebun Bunga 2",
+      "cat": "nature",
+      "file": "/models/store/nature/kebun_bunga_2.vox",
+      "preview": "/models/store/previews/nature__kebun_bunga_2.png",
+      "price": 2800,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        41,
+        60
+      ],
+      "voxels": 19071
+    },
+    {
+      "id": "nature/kluster_batu_kali",
+      "name": "Kluster Batu Kali",
+      "cat": "nature",
+      "file": "/models/store/nature/kluster_batu_kali.vox",
+      "preview": "/models/store/previews/nature__kluster_batu_kali.png",
+      "price": 2650,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        57,
+        30,
+        55
+      ],
+      "voxels": 21047
+    },
+    {
+      "id": "nature/merambat_lumut",
+      "name": "Merambat Lumut",
+      "cat": "nature",
+      "file": "/models/store/nature/merambat_lumut.vox",
+      "preview": "/models/store/previews/nature__merambat_lumut.png",
+      "price": 2230,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        50,
+        52,
+        31
+      ],
+      "voxels": 25193
+    },
+    {
+      "id": "nature/pakis_hias",
+      "name": "Pakis Hias",
+      "cat": "nature",
+      "file": "/models/store/nature/pakis_hias.vox",
+      "preview": "/models/store/previews/nature__pakis_hias.png",
+      "price": 2000,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        38,
+        50,
+        37
+      ],
+      "voxels": 7904
+    },
+    {
+      "id": "nature/pohon_kecil_meliuk",
+      "name": "Pohon Kecil Meliuk",
+      "cat": "nature",
+      "file": "/models/store/nature/pohon_kecil_meliuk.vox",
+      "preview": "/models/store/previews/nature__pohon_kecil_meliuk.png",
+      "price": 1820,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.27,
+      "size": [
+        21,
+        37,
+        20
+      ],
+      "voxels": 2631
+    },
+    {
+      "id": "nature/pohon_maple",
+      "name": "Pohon Maple",
+      "cat": "nature",
+      "file": "/models/store/nature/pohon_maple.vox",
+      "preview": "/models/store/previews/nature__pohon_maple.png",
+      "price": 3050,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        43,
+        59,
+        43
+      ],
+      "voxels": 10021
+    },
+    {
+      "id": "nature/pohon_pinus",
+      "name": "Pohon Pinus",
+      "cat": "nature",
+      "file": "/models/store/nature/pohon_pinus.vox",
+      "preview": "/models/store/previews/nature__pohon_pinus.png",
+      "price": 1990,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        36,
+        60,
+        37
+      ],
+      "voxels": 10459
+    },
+    {
+      "id": "nature/pohon_plum",
+      "name": "Pohon Plum",
+      "cat": "nature",
+      "file": "/models/store/nature/pohon_plum.vox",
+      "preview": "/models/store/previews/nature__pohon_plum.png",
+      "price": 2460,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        37,
+        58,
+        37
+      ],
+      "voxels": 16949
+    },
+    {
+      "id": "nature/pohon_raksasa_kuno",
+      "name": "Pohon Raksasa Kuno",
+      "cat": "nature",
+      "file": "/models/store/nature/pohon_raksasa_kuno.vox",
+      "preview": "/models/store/previews/nature__pohon_raksasa_kuno.png",
+      "price": 1940,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        55,
+        60,
+        55
+      ],
+      "voxels": 24149
+    },
+    {
+      "id": "nature/pohon_sakura",
+      "name": "Pohon Sakura",
+      "cat": "nature",
+      "file": "/models/store/nature/pohon_sakura.vox",
+      "preview": "/models/store/previews/nature__pohon_sakura.png",
+      "price": 1240,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.26,
+      "size": [
+        39,
+        33,
+        35
+      ],
+      "voxels": 16858
+    },
+    {
+      "id": "nature/rumput_liar",
+      "name": "Rumput Liar",
+      "cat": "nature",
+      "file": "/models/store/nature/rumput_liar.vox",
+      "preview": "/models/store/previews/nature__rumput_liar.png",
+      "price": 2340,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        37,
+        49,
+        34
+      ],
+      "voxels": 8157
+    },
+    {
+      "id": "nature/semak_berbunga",
+      "name": "Semak Berbunga",
+      "cat": "nature",
+      "file": "/models/store/nature/semak_berbunga.vox",
+      "preview": "/models/store/previews/nature__semak_berbunga.png",
+      "price": 1810,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        45,
+        38,
+        43
+      ],
+      "voxels": 20140
+    },
+    {
+      "id": "nature/semak_berbunga_2",
+      "name": "Semak Berbunga 2",
+      "cat": "nature",
+      "file": "/models/store/nature/semak_berbunga_2.vox",
+      "preview": "/models/store/previews/nature__semak_berbunga_2.png",
+      "price": 2220,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        43,
+        44,
+        47
+      ],
+      "voxels": 18786
+    },
+    {
+      "id": "nature/semak_berbunga_3",
+      "name": "Semak Berbunga 3",
+      "cat": "nature",
+      "file": "/models/store/nature/semak_berbunga_3.vox",
+      "preview": "/models/store/previews/nature__semak_berbunga_3.png",
+      "price": 1520,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        41,
+        49,
+        41
+      ],
+      "voxels": 16106
+    },
+    {
+      "id": "nature/semak_pakis",
+      "name": "Semak Pakis",
+      "cat": "nature",
+      "file": "/models/store/nature/semak_pakis.vox",
+      "preview": "/models/store/previews/nature__semak_pakis.png",
+      "price": 2580,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        51,
+        24,
+        46
+      ],
+      "voxels": 7855
+    },
+    {
+      "id": "decor/dinding_reruntuhan",
+      "name": "Dinding Reruntuhan",
+      "cat": "decor",
+      "file": "/models/store/decor/dinding_reruntuhan.vox",
+      "preview": "/models/store/previews/decor__dinding_reruntuhan.png",
+      "price": 3380,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        59,
+        51,
+        23
+      ],
+      "voxels": 16783
+    },
+    {
+      "id": "decor/jalur_batu_pipih",
+      "name": "Jalur Batu Pipih",
+      "cat": "decor",
+      "file": "/models/store/decor/jalur_batu_pipih.vox",
+      "preview": "/models/store/previews/decor__jalur_batu_pipih.png",
+      "price": 5200,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        6,
+        60
+      ],
+      "voxels": 11703
+    },
+    {
+      "id": "decor/jalur_batu_pipih_2",
+      "name": "Jalur Batu Pipih 2",
+      "cat": "decor",
+      "file": "/models/store/decor/jalur_batu_pipih_2.vox",
+      "preview": "/models/store/previews/decor__jalur_batu_pipih_2.png",
+      "price": 3720,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        7,
+        60
+      ],
+      "voxels": 10014
+    },
+    {
+      "id": "decor/jembatan_taiko",
+      "name": "Jembatan Taiko",
+      "cat": "decor",
+      "file": "/models/store/decor/jembatan_taiko.vox",
+      "preview": "/models/store/previews/decor__jembatan_taiko.png",
+      "price": 4050,
+      "minLv": 1,
+      "zone": "water",
+      "scale": 0.25,
+      "size": [
+        52,
+        26,
+        25
+      ],
+      "voxels": 11135
+    },
+    {
+      "id": "decor/kapal_udara",
+      "name": "Kapal Udara",
+      "cat": "decor",
+      "file": "/models/store/decor/kapal_udara.vox",
+      "preview": "/models/store/previews/decor__kapal_udara.png",
+      "price": 3250,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        34,
+        55,
+        59
+      ],
+      "voxels": 27908
+    },
+    {
+      "id": "decor/pagar_kayu",
+      "name": "Pagar Kayu",
+      "cat": "decor",
+      "file": "/models/store/decor/pagar_kayu.vox",
+      "preview": "/models/store/previews/decor__pagar_kayu.png",
+      "price": 4740,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        59,
+        49,
+        6
+      ],
+      "voxels": 10077
+    },
+    {
+      "id": "decor/pagar_peternakan",
+      "name": "Pagar Peternakan",
+      "cat": "decor",
+      "file": "/models/store/decor/pagar_peternakan.vox",
+      "preview": "/models/store/previews/decor__pagar_peternakan.png",
+      "price": 4490,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        52,
+        53,
+        52
+      ],
+      "voxels": 11006
+    },
+    {
+      "id": "decor/pagar_peternakan_2",
+      "name": "Pagar Peternakan 2",
+      "cat": "decor",
+      "file": "/models/store/decor/pagar_peternakan_2.vox",
+      "preview": "/models/store/previews/decor__pagar_peternakan_2.png",
+      "price": 3590,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        44,
+        37
+      ],
+      "voxels": 14721
+    },
+    {
+      "id": "decor/pagar_peternakan_3",
+      "name": "Pagar Peternakan 3",
+      "cat": "decor",
+      "file": "/models/store/decor/pagar_peternakan_3.vox",
+      "preview": "/models/store/previews/decor__pagar_peternakan_3.png",
+      "price": 5070,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        58,
+        55,
+        11
+      ],
+      "voxels": 10324
+    },
+    {
+      "id": "decor/pagar_peternakan_4",
+      "name": "Pagar Peternakan 4",
+      "cat": "decor",
+      "file": "/models/store/decor/pagar_peternakan_4.vox",
+      "preview": "/models/store/previews/decor__pagar_peternakan_4.png",
+      "price": 4580,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        51,
+        51,
+        9
+      ],
+      "voxels": 6899
+    },
+    {
+      "id": "decor/pagar_picket",
+      "name": "Pagar Picket",
+      "cat": "decor",
+      "file": "/models/store/decor/pagar_picket.vox",
+      "preview": "/models/store/previews/decor__pagar_picket.png",
+      "price": 3450,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        37,
+        9
+      ],
+      "voxels": 7966
+    },
+    {
+      "id": "decor/petak_ladang",
+      "name": "Petak Ladang",
+      "cat": "decor",
+      "file": "/models/store/decor/petak_ladang.vox",
+      "preview": "/models/store/previews/decor__petak_ladang.png",
+      "price": 3900,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        25,
+        60
+      ],
+      "voxels": 32271
+    },
+    {
+      "id": "decor/petak_ladang_2",
+      "name": "Petak Ladang 2",
+      "cat": "decor",
+      "file": "/models/store/decor/petak_ladang_2.vox",
+      "preview": "/models/store/previews/decor__petak_ladang_2.png",
+      "price": 4350,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        59,
+        19,
+        59
+      ],
+      "voxels": 30656
+    },
+    {
+      "id": "decor/petak_ladang_3",
+      "name": "Petak Ladang 3",
+      "cat": "decor",
+      "file": "/models/store/decor/petak_ladang_3.vox",
+      "preview": "/models/store/previews/decor__petak_ladang_3.png",
+      "price": 3590,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        22,
+        60
+      ],
+      "voxels": 20805
+    },
+    {
+      "id": "decor/petak_ladang_4",
+      "name": "Petak Ladang 4",
+      "cat": "decor",
+      "file": "/models/store/decor/petak_ladang_4.vox",
+      "preview": "/models/store/previews/decor__petak_ladang_4.png",
+      "price": 4530,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        60,
+        22,
+        60
+      ],
+      "voxels": 19341
+    },
+    {
+      "id": "decor/relikui_reruntuhan",
+      "name": "Relikui Reruntuhan",
+      "cat": "decor",
+      "file": "/models/store/decor/relikui_reruntuhan.vox",
+      "preview": "/models/store/previews/decor__relikui_reruntuhan.png",
+      "price": 5110,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        50,
+        30,
+        55
+      ],
+      "voxels": 24217
+    },
+    {
+      "id": "decor/sumur_tua",
+      "name": "Sumur Tua",
+      "cat": "decor",
+      "file": "/models/store/decor/sumur_tua.vox",
+      "preview": "/models/store/previews/decor__sumur_tua.png",
+      "price": 3630,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        55,
+        60,
+        55
+      ],
+      "voxels": 35681
+    },
+    {
+      "id": "decor/sumur_tua_2",
+      "name": "Sumur Tua 2",
+      "cat": "decor",
+      "file": "/models/store/decor/sumur_tua_2.vox",
+      "preview": "/models/store/previews/decor__sumur_tua_2.png",
+      "price": 3270,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        55,
+        60,
+        55
+      ],
+      "voxels": 27265
+    },
+    {
+      "id": "decor/tangga_batu_kuno",
+      "name": "Tangga Batu Kuno",
+      "cat": "decor",
+      "file": "/models/store/decor/tangga_batu_kuno.vox",
+      "preview": "/models/store/previews/decor__tangga_batu_kuno.png",
+      "price": 3910,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        59,
+        59,
+        55
+      ],
+      "voxels": 33117
+    },
+    {
+      "id": "lights/flora_bercahaya",
+      "name": "Flora Bercahaya",
+      "cat": "lights",
+      "file": "/models/store/lights/flora_bercahaya.vox",
+      "preview": "/models/store/previews/lights__flora_bercahaya.png",
+      "price": 3840,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        41,
+        58,
+        41
+      ],
+      "voxels": 13505
+    },
+    {
+      "id": "lights/kunang_kunang",
+      "name": "Kunang Kunang",
+      "cat": "lights",
+      "file": "/models/store/lights/kunang_kunang.vox",
+      "preview": "/models/store/previews/lights__kunang_kunang.png",
+      "price": 3150,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        15,
+        19,
+        47
+      ],
+      "voxels": 2213
+    },
+    {
+      "id": "lights/lampu_toro",
+      "name": "Lampu Toro",
+      "cat": "lights",
+      "file": "/models/store/lights/lampu_toro.vox",
+      "preview": "/models/store/previews/lights__lampu_toro.png",
+      "price": 3630,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        35,
+        60,
+        35
+      ],
+      "voxels": 23427
+    },
+    {
+      "id": "lights/lentera_api",
+      "name": "Lentera Api",
+      "cat": "lights",
+      "file": "/models/store/lights/lentera_api.vox",
+      "preview": "/models/store/previews/lights__lentera_api.png",
+      "price": 3700,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        29,
+        56,
+        29
+      ],
+      "voxels": 14581
+    },
+    {
+      "id": "lights/lentera_api_tradisional",
+      "name": "Lentera Api Tradisional",
+      "cat": "lights",
+      "file": "/models/store/lights/lentera_api_tradisional.vox",
+      "preview": "/models/store/previews/lights__lentera_api_tradisional.png",
+      "price": 2410,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        35,
+        47,
+        34
+      ],
+      "voxels": 31765
+    },
+    {
+      "id": "lights/lentera_suar",
+      "name": "Lentera Suar",
+      "cat": "lights",
+      "file": "/models/store/lights/lentera_suar.vox",
+      "preview": "/models/store/previews/lights__lentera_suar.png",
+      "price": 2860,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        33,
+        60,
+        33
+      ],
+      "voxels": 28709
+    },
+    {
+      "id": "fauna/burung_merak",
+      "name": "Burung Merak",
+      "cat": "fauna",
+      "file": "/models/store/fauna/burung_merak.vox",
+      "preview": "/models/store/previews/fauna__burung_merak.png",
+      "price": 2910,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        45,
+        57,
+        34
+      ],
+      "voxels": 3330
+    },
+    {
+      "id": "fauna/katak",
+      "name": "Katak",
+      "cat": "fauna",
+      "file": "/models/store/fauna/katak.vox",
+      "preview": "/models/store/previews/fauna__katak.png",
+      "price": 2230,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        41,
+        35,
+        47
+      ],
+      "voxels": 10134
+    },
+    {
+      "id": "fauna/kupu_kupu",
+      "name": "Kupu Kupu",
+      "cat": "fauna",
+      "file": "/models/store/fauna/kupu_kupu.vox",
+      "preview": "/models/store/previews/fauna__kupu_kupu.png",
+      "price": 2590,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        51,
+        15,
+        31
+      ],
+      "voxels": 2822
+    },
+    {
+      "id": "fauna/rubah_surgawi",
+      "name": "Rubah Surgawi",
+      "cat": "fauna",
+      "file": "/models/store/fauna/rubah_surgawi.vox",
+      "preview": "/models/store/previews/fauna__rubah_surgawi.png",
+      "price": 3370,
+      "minLv": 1,
+      "zone": "land",
+      "scale": 0.25,
+      "size": [
+        53,
+        57,
+        55
+      ],
+      "voxels": 6847
+    }
+  ]
+}
