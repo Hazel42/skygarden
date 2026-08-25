@@ -332,6 +332,9 @@ export class Fauna {
     }
 
     this.flies = []
+    if (!anchors.trees || !anchors.trees.length) {
+      anchors.trees.push({ x: 0, y: 16, z: 0, rad: 5 })
+    }
     for (let i = 0; i < 12; i++) {
       const g = makeButterfly()
       g.visible = false

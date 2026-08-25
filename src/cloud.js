@@ -111,7 +111,7 @@ export const cloud = {
   },
 
   async getProfile() {
-    if (!this.ok || !this.uid) return null
+    if (!this.ok || !this.uid || this.isGuest) return null
     try {
       const q = this.sb.from('profiles').select('*').eq('id', this.uid).maybeSingle()
       const { data, error } = await (q.abortSignal ? q.abortSignal(AbortSignal.timeout(DB_TIMEOUT)) : q)
@@ -123,7 +123,7 @@ export const cloud = {
   },
 
   async saveProfile(patch) {
-    if (!this.ok || !this.uid) return null
+    if (!this.ok || !this.uid || this.isGuest) return null
     try {
       const q = this.sb.from('profiles').update(patch).eq('id', this.uid).select().maybeSingle()
       const { data, error } = await (q.abortSignal ? q.abortSignal(AbortSignal.timeout(DB_TIMEOUT)) : q)

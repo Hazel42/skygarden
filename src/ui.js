@@ -108,16 +108,59 @@ export class UI {
     this.$('btnObjScaleU').addEventListener('click', () => hooks.onObjScale(1.15))
     this.$('btnObjStore').addEventListener('click', () => hooks.onObjStore())
     this.$('btnObjDelete').addEventListener('click', () => hooks.onObjDelete())
-    this.$('btnObjUp').addEventListener('click', () => hooks.onObjUpgrade())
-    this.$('btnObjSnap').addEventListener('click', e => {
-      e.currentTarget.textContent = hooks.onObjSnapCycle()
-    })
     this.$('btnObjFree').addEventListener('click', e => {
       const on = hooks.onObjFreeToggle()
       e.currentTarget.textContent = on ? '🕊 Bebas: ON' : '🕊 Bebas: OFF'
       e.currentTarget.classList.toggle('done', on)
     })
+    this.$('btnObjUp').addEventListener('click', () => hooks.onObjUpgrade())
+    this.$('btnObjSnap').addEventListener('click', e => {
+      e.currentTarget.textContent = hooks.onObjSnapCycle()
+    })
+    this.$('btnVoxRemove').addEventListener('click', e => {
+      hooks.onVoxSubMode('remove')
+      e.currentTarget.classList.add('done')
+      this.$('btnVoxAdd').classList.remove('done')
+    })
+    // material palette
+    const MAT_COLORS = { grass: '#7FB069', stone: '#98A1AB', wood: '#8A5A3B', sand: '#E8D5A3', water: '#4FC3F7', glow: '#FFE2A8' }
+    const pal = this.$('matPalette')
+    if (pal) {
+      for (const [id, color] of Object.entries(MAT_COLORS)) {
+        const b = document.createElement('button')
+        b.style.cssText = `width:28px;height:28px;border-radius:6px;cursor:pointer;background:${color};border:2px solid ${id === 'grass' ? '#fff' : 'transparent'}`
+        b.title = id
+        b.addEventListener('click', () => {
+          pal.querySelectorAll('button').forEach(x => x.style.borderColor = 'transparent')
+          b.style.borderColor = '#fff'
+          hooks.onVoxMat(id)
+        })
+        pal.appendChild(b)
+      }
+    }
     this.$('btnGuideClose').addEventListener('click', () => hooks.onGuideDismiss())
+    this.$('btnVoxMode').addEventListener('click', () => {
+      const on = this.$('btnVoxMode').classList.toggle('on')
+      this.$('btnVoxMode').textContent = on ? '🧱 Blok: ON' : '🧱 Blok: OFF'
+      this.$('voxPanel').classList.toggle('hidden', !on)
+      hooks.onVoxMode(on)
+    })
+    this.$('btnCloseVox').addEventListener('click', () => {
+      this.$('voxPanel').classList.add('hidden')
+      this.$('btnVoxMode').classList.remove('on')
+      this.$('btnVoxMode').textContent = '🧱 Blok: OFF'
+      hooks.onVoxMode(false)
+    })
+    this.$('btnVoxAdd').addEventListener('click', e => {
+      hooks.onVoxSubMode('add')
+      e.currentTarget.classList.add('done')
+      this.$('btnVoxRemove').classList.remove('done')
+    })
+    this.$('btnVoxRemove').addEventListener('click', e => {
+      hooks.onVoxSubMode('remove')
+      e.currentTarget.classList.add('done')
+      this.$('btnVoxAdd').classList.remove('done')
+    })
     this.$('btnLbRefresh').addEventListener('click', () => hooks.onLeaderboardRefresh?.())
     this.$('btnObjClose').addEventListener('click', () => hooks.onObjClose())
     this.$('btnPRotL').addEventListener('click', () => hooks.onPlaceRotate(-1))
@@ -482,7 +525,9 @@ export class UI {
     const sectD = document.createElement('div')
     sectD.className = 'sect'
     sectD.id = 'sec-dom'
-    sectD.textContent = '🗺️ Domain & Luas Pulau · ∞'
+    const bc = s.bonusCategory()
+    const BC_META = { nature: '🌳 Alam', lights: '✨ Cahaya', buildings: '🏯 Bangunan', decor: '🏮 Dekorasi', fauna: '🦊 Fauna' }
+    sectD.textContent = `🗺️ Domain & Luas Pulau · ∞ · ⚡ Hari ini: ${BC_META[bc] || bc} ×2`
     this.buildList.appendChild(sectD)
     chips.push(['sec-dom', '🗺️ Pulau'])
 
@@ -544,8 +589,10 @@ export class UI {
         const thumb = it.preview
           ? `<img src="${it.preview}" alt="" loading="lazy" draggable="false">`
           : '🧊'
+        const inRecipe = (s._uniq || []).some(u => (u.a || []).includes(it.id) || (u.b || []).includes(it.id))
+        const badge = inRecipe ? '<span style="position:absolute;top:2px;right:2px;font-size:9px">⚡</span>' : ''
         card.innerHTML =
-          `<div class="ci">${thumb}</div>` +
+          `<div class="ci" style="position:relative">${thumb}${badge}</div>` +
           `<div class="cm"><div class="cn">${it.name}</div><div class="cd">${cd}</div></div>`
         const btn = document.createElement('button')
         btn.className = 'cb'
@@ -609,6 +656,9 @@ export class UI {
     this.btnManageMode.textContent = '🎛 Kelola Objek: OFF'
     this.hideObj()
     this.hidePlace()
+    this.$('voxPanel')?.classList.add('hidden')
+    const vbn = this.$('btnVoxMode')
+    if (vbn) { vbn.classList.remove('on'); vbn.textContent = '🧱 Blok: OFF' }
     this.hooks.onPreviewStop?.()
     if (!this.questsPanel.classList.contains('hidden')) this.setBarActive(this.btnQuests)
     else if (this.panel.classList.contains('hidden')) this.setBarActive(null)

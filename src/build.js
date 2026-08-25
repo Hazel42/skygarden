@@ -3,6 +3,16 @@ import gsap from 'gsap'
 import { buildVoxelGeometry, createVoxelSolidMaterial } from './voxel.js'
 import { parseVox } from './voxloader.js'
 
+export const VOXEL_MATS = {
+  grass: { color: '#7FB069', transparent: false },
+  stone: { color: '#98A1AB', transparent: false },
+  wood: { color: '#8A5A3B', transparent: false },
+  sand: { color: '#E8D5A3', transparent: false },
+  water: { color: '#4FC3F7', transparent: true, opacity: 0.65 },
+  glow: { color: '#FFE2A8', transparent: false, emissive: true }
+}
+const MAT_KEYS = Object.keys(VOXEL_MATS)
+
 const CATALOG_URL = '/models/store/catalog.json'
 
 const hexOf = (r, g, b) => '#' + [r, g, b].map(v => Math.max(0, Math.min(255, v | 0)).toString(16).padStart(2, '0')).join('')
@@ -58,6 +68,17 @@ export class Builder {
     this.freeMove = false
     this.overlapTarget = null
 
+    // ---- voxel build mode ----
+    this.voxMode = null // null | 'add' | 'remove'
+    this.voxMat = 'grass'
+    this.voxelRoot = new THREE.Group()
+    scene.add(this.voxelRoot)
+    this.voxelMeshes = new Map() // "x,y,z" -> mesh
+    this._voxGhost = null
+    this.snapStep = 1
+    this.freeMove = false
+    this.overlapTarget = null
+
     this.cellMark = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({ color: '#9FE8B0', transparent: true, opacity: 0.35, depthWrite: false })
@@ -66,10 +87,22 @@ export class Builder {
     this.cellMark.visible = false
     scene.add(this.cellMark)
 
+    // voxel ghost (preview of block to place)
+    const vg = new THREE.BoxGeometry(1, 1, 1)
+    this._voxGhost = new THREE.Mesh(vg, new THREE.MeshBasicMaterial({
+      color: '#7FD88F', transparent: true, opacity: 0.4, depthWrite: false
+    }))
+    this._voxGhost.visible = false
+    scene.add(this._voxGhost)
+
     this.replaceMat = new THREE.MeshBasicMaterial({
       color: '#FF5A5A', transparent: true, opacity: 0.55,
       depthWrite: false, toneMapped: false
     })
+
+    // synergy auras
+    this._auras = new Map()
+    this._auraAcc = 0
   }
 
   setSnapStep(v) {
@@ -80,6 +113,175 @@ export class Builder {
   setFreeMove(on) {
     this.freeMove = !!on
     return this.freeMove
+  }
+
+  // ---- voxel build mode ----
+  setVoxMode(mode) {
+    this.voxMode = mode // null | 'add' | 'remove'
+    if (!mode && this._voxGhost) this._voxGhost.visible = false
+    if (mode) {
+      this.exitGhost()
+      this.clearSelection()
+      this.active = false
+      this.selected = null
+    }
+  }
+
+  setVoxMat(mat) {
+    if (VOXEL_MATS[mat]) this.voxMat = mat
+  }
+
+  _voxKey(x, y, z) { return x + ',' + y + ',' + z }
+
+  handleVoxPointer(cx, cy, camera, raycaster, commit) {
+    const ndc = new THREE.Vector2(
+      (cx / window.innerWidth) * 2 - 1, -(cy / window.innerHeight) * 2 + 1
+    )
+    raycaster.setFromCamera(ndc, camera)
+
+    const allTargets = [...this.world.groundTargets(), ...this.voxelRoot.children]
+    const hits = raycaster.intersectObjects(allTargets, false)
+    if (!hits.length) { this._voxGhost.visible = false; return }
+
+    const hit = hits[0]
+    const p = hit.point
+    const normal = hit.face ? hit.face.normal : new THREE.Vector3(0, 1, 0)
+
+    let vx, vy, vz
+    if (this.voxMode === 'add') {
+      vx = Math.round(p.x + normal.x * 0.5)
+      vy = Math.round(p.y + normal.y * 0.5)
+      vz = Math.round(p.z + normal.z * 0.5)
+    } else {
+      vx = Math.round(p.x); vy = Math.round(p.y); vz = Math.round(p.z)
+    }
+    const k = this._voxKey(vx, vy, vz)
+
+    if (this.voxMode === 'add') {
+      this._voxGhost.position.set(vx, vy, vz)
+      this._voxGhost.material.color.set(VOXEL_MATS[this.voxMat]?.color || '#7FB069')
+      this._voxGhost.visible = true
+      if (!commit) return
+      if (this.voxelMeshes.has(k)) return // sudah ada blok di sini
+      const matCfg = VOXEL_MATS[this.voxMat]
+      const mat = new THREE.MeshLambertMaterial({
+        color: matCfg.color,
+        transparent: !!matCfg.transparent,
+        opacity: matCfg.opacity || 1
+      })
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat)
+      mesh.position.set(vx, vy, vz)
+      mesh.userData.mat = this.voxMat
+      this.voxelRoot.add(mesh)
+      this.voxelMeshes.set(k, mesh)
+      this.hooks.onVoxelPlaced?.({ x: vx, y: vy, z: vz, mat: this.voxMat })
+    } else if (this.voxMode === 'remove') {
+      if (this.voxelMeshes.has(k)) {
+        this._voxGhost.position.set(vx, vy, vz)
+        this._voxGhost.material.color.set('#FF5A5A')
+        this._voxGhost.visible = true
+        if (!commit) return
+        const m = this.voxelMeshes.get(k)
+        this.voxelRoot.remove(m)
+        m.geometry.dispose(); m.material.dispose()
+        this.voxelMeshes.delete(k)
+        this.hooks.onVoxelRemoved?.({ x: vx, y: vy, z: vz })
+      } else {
+        // coba hapus dari terrain (hanya visual — tandai sebagai removed)
+        this._voxGhost.position.set(vx, vy, vz)
+        this._voxGhost.material.color.set('#FF5A5A')
+        this._voxGhost.visible = true
+        if (!commit) return
+        this.hooks.onVoxelRemoved?.({ x: vx, y: vy, z: vz })
+      }
+    }
+  }
+
+  getVoxelMods() {
+    const mods = []
+    for (const [k, mesh] of this.voxelMeshes) {
+      const [x, y, z] = k.split(',').map(Number)
+      mods.push({ op: 'add', x, y, z, mat: mesh.userData.mat || 'grass' })
+    }
+    return mods
+  }
+
+  loadVoxelMods(mods) {
+    if (!Array.isArray(mods)) return
+    for (const m of mods) {
+      if (m.op !== 'add' || !m.mat) continue
+      const matCfg = VOXEL_MATS[m.mat] || VOXEL_MATS.grass
+      const mat = new THREE.MeshLambertMaterial({
+        color: matCfg.color,
+        transparent: !!matCfg.transparent,
+        opacity: matCfg.opacity || 1
+      })
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat)
+      mesh.position.set(m.x, m.y, m.z)
+      mesh.userData.mat = m.mat
+      this.voxelRoot.add(mesh)
+      this.voxelMeshes.set(this._voxKey(m.x, m.y, m.z), mesh)
+    }
+  }
+
+  clearVoxelEdits() {
+    while (this.voxelRoot.children.length) {
+      const c = this.voxelRoot.children[0]
+      this.voxelRoot.remove(c)
+      c.geometry.dispose(); c.material.dispose()
+    }
+    this.voxelMeshes.clear()
+  }
+
+  updateSynergyAuras() {
+    const uniq = this.state._uniq || []
+    const activeIds = new Set()
+    for (const u of uniq) {
+      for (const id of [...(u.a || []), ...(u.b || [])]) activeIds.add(id)
+    }
+    // hapus aura untuk objek yang tidak lagi bersinergi
+    for (const [ck, ring] of this._auras) {
+      const g = this.placedGroups.get(ck)
+      const type = g?.userData.type
+      if (!type || !activeIds.has(type)) {
+        this.scene.remove(ring)
+        ring.geometry.dispose(); ring.material.dispose()
+        this._auras.delete(ck)
+      }
+    }
+    // tambah aura untuk objek yang membentuk resep
+    for (const [ck, g] of this.placedGroups) {
+      if (this._auras.has(ck)) continue
+      const type = g.userData.type
+      if (!type || !activeIds.has(type)) continue
+      const geo = new THREE.RingGeometry(0.9, 1.25, 24)
+      const mat = new THREE.MeshBasicMaterial({
+        color: '#FFD76E', transparent: true, opacity: 0.3,
+        side: THREE.DoubleSide, depthWrite: false, toneMapped: false
+      })
+      const ring = new THREE.Mesh(geo, mat)
+      ring.rotation.x = -Math.PI / 2
+      ring.position.set(g.position.x, g.position.y + 0.06, g.position.z)
+      ring.userData.isAura = true
+      this.scene.add(ring)
+      this._auras.set(ck, ring)
+    }
+  }
+
+  animateAuras(tGlob) {
+    for (const ring of this._auras.values()) {
+      const pulse = 1 + Math.sin(tGlob * 2.2) * 0.18
+      ring.scale.setScalar(pulse)
+      ring.material.opacity = 0.22 + Math.sin(tGlob * 2.2 + 0.5) * 0.14
+    }
+  }
+
+  disposeAuras() {
+    for (const ring of this._auras.values()) {
+      this.scene.remove(ring)
+      ring.geometry.dispose(); ring.material.dispose()
+    }
+    this._auras.clear()
   }
 
   _markOverlap(g) {
@@ -202,6 +404,26 @@ export class Builder {
 
   get managing() { return this.mode === 'manage' }
 
+  setRaycaster(camera, raycaster, cx, cy) {
+    this._cam = camera
+    this._rc = raycaster
+    this._cx = cx
+    this._cy = cy
+  }
+
+  perFrameUpdate() {
+    if (this.managing && this.moveArmed && this.selGroup && this._rc) {
+      const ndc = new THREE.Vector2(
+        (this._cx / window.innerWidth) * 2 - 1, -(this._cy / window.innerHeight) * 2 + 1
+      )
+      this._rc.setFromCamera(ndc, this._cam)
+      this._movePreview(ndc, this._cam, this._rc, false)
+    }
+    if (this.voxMode && this._rc) {
+      this.handleVoxPointer(this._cx || 400, this._cy || 300, this._cam, this._rc, false)
+    }
+  }
+
   select(id) {
     this.exitGhost()
     this.clearSelection()
@@ -244,6 +466,11 @@ export class Builder {
       if (this.ghost) this.ghost.visible = false
     }
     if (m !== 'manage') this.clearSelection()
+    // vox mode cleanup
+    if (this.voxMode && m !== 'vox') {
+      this.voxMode = null
+      if (this._voxGhost) this._voxGhost.visible = false
+    }
   }
 
   clearSelection() {
@@ -374,8 +601,73 @@ export class Builder {
   toggleMoveSelected() {
     if (!this.selGroup) return false
     this.moveArmed = !this.moveArmed
+    const g = this.selGroup
+    if (this.moveArmed) {
+      // angkat objek + ghost material hijau
+      this._moveOrigY = g.position.y
+      g.position.y += 0.5
+      g.userData._moveOrig = g.children.map(m => m.material)
+      g.children.forEach(m => {
+        if (!m.userData?.isBadge) m.material = this.ghostOk
+      })
+    } else {
+      // batal — kembalikan posisi & material
+      if (g.userData._moveOrigY !== undefined) {
+        g.position.y = g.userData._moveOrigY
+        delete g.userData._moveOrigY
+      }
+      this._restoreMoveMats(g)
+      const rec = this._recOf(g)
+      if (rec) { g.position.x = rec.x; g.position.z = rec.z; g.position.y = this.world.cellAt(rec.x, rec.z)?.top ?? 10 }
+    }
     this.hooks.onSelChange?.(this._selInfo())
-    return this.moveArmed
+    return true
+  }
+
+  _restoreMoveMats(g) {
+    if (g.userData._moveOrig) {
+      g.children.forEach((m, i) => {
+        const o = g.userData._moveOrig[i]
+        if (o && !m.userData?.isBadge) m.material = o
+      })
+      delete g.userData._moveOrig
+    }
+  }
+
+  updateMovingObject(mx, my, camera, raycaster) {
+    if (!this.moveArmed || !this.selGroup) return
+    const ndc = new THREE.Vector2(
+      (mx / window.innerWidth) * 2 - 1, -(my / window.innerHeight) * 2 + 1
+    )
+    raycaster.setFromCamera(ndc, camera)
+    const hits = raycaster.intersectObjects(this.world.groundTargets(), false)
+    if (!hits.length) return
+    const p = hits[0].point
+    const x = Math.round(p.x), z = Math.round(p.z)
+    this._pendingX = x; this._pendingZ = z; this._pendingY = p.y
+    this.selGroup.position.set(x, p.y + 0.5, z)
+    this.selBox?.update()
+  }
+
+  commitMove() {
+    if (!this.moveArmed || !this.selGroup || this._pendingX === undefined) return false
+    const g = this.selGroup
+    const x = this._pendingX, z = this._pendingZ, y = this._pendingY
+    this._restoreMoveMats(g)
+    g.position.set(x, y, z)
+    const oldPk = g.userData.ck
+    const rec = this._recOf(g)
+    this.occupancy.delete(oldPk)
+    this.placedGroups.delete(oldPk)
+    const pk = this._pk('', x, z)
+    g.userData.ck = pk
+    this.occupancy.add(pk)
+    this.placedGroups.set(pk, g)
+    if (rec) { rec.x = x; rec.z = z; rec.p = '' }
+    this.moveArmed = false
+    delete this._pendingX; delete this._pendingZ; delete this._pendingY
+    this.hooks.onSelChange?.(this._selInfo())
+    return true
   }
 
   deleteSelected() {
@@ -393,6 +685,7 @@ export class Builder {
     this.occupancy.clear()
     this.placedGroups.clear()
     this.state.placements.length = 0
+    this._localDirty = true
     this.state.recalc?.()
   }
 
@@ -438,6 +731,14 @@ export class Builder {
     if (!commit) {
       this._markOverlap(blocker)
       return
+    }
+    // commit: restore material asli sebelum finalisasi
+    if (g.userData._moveOrig) {
+      g.children.forEach((m, i) => {
+        const o = g.userData._moveOrig[i]
+        if (o && !m.userData?.isBadge) m.material = o
+      })
+      delete g.userData._moveOrig
     }
     const replaced = blocker ? this._consumeOverlap() : null
     const oldPk = g.userData.ck
@@ -676,6 +977,7 @@ export class Builder {
     this.placedGroups.delete(ck)
     const idx = this.state.placements.findIndex(p => this._pk(p.p || '', p.x, p.z) === ck)
     if (idx >= 0) this.state.placements.splice(idx, 1)
+    this._localDirty = true
     this.state.recalc?.()
     if (opts.refund && item?.price) {
       this.state.essence += Math.floor(item.price / 2)

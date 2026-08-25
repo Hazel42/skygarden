@@ -308,7 +308,7 @@ export class FX {
     this.smoke.update(dt, t, env)
     this._updateDebris(dt)
 
-    const wantAmbient = this.sakuraLevel > 0 ? 230 : 80
+    const wantAmbient = (this.sakuraLevel > 0 ? 230 : 80) * (this.bloomBoost || 1)
     let live = 0
     for (let i = 0; i < this.petals.count; i++) {
       if (this.petals.d[i].life > 0 && this.petals.d[i].mode === 1) live++

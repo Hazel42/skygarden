@@ -119,6 +119,7 @@ export class GameState {
     this.flowerUp = {}
     this.loginStreak = 0
     this.lastLoginDate = ''
+    this.voxelMods = []
     this.muted = false
     this.rainOn = false
     this.xp = 0
@@ -436,10 +437,11 @@ export class GameState {
 
     const catN = { nature: 0, lights: 0, buildings: 0, decor: 0, fauna: 0 }
     let distinct = 0
+    const bc = this.bonusCategory()
     for (const p of this.placements) {
       const c = String(p.t || '').split('/')[0]
       if (c in catN) {
-        const w = 1 + (((p.v || 1) - 1) * 0.35)
+        const w = (1 + (((p.v || 1) - 1) * 0.35)) * (c === bc ? 2 : 1)
         if (catN[c] === 0) distinct++
         catN[c] += w
       }
@@ -566,6 +568,11 @@ export class GameState {
   }
 
   gardenTitle() { return this._gTitle || { score: 0, idx: 0, name: 'Taman Kecil' } }
+
+  bonusCategory() {
+    const cats = ['nature', 'lights', 'buildings', 'decor', 'fauna']
+    return cats[new Date().getDay() % cats.length]
+  }
   tick(dt) {
     if (this.passive <= 0) return
     const m = this.buffActive() ? 2 : 1
@@ -732,6 +739,7 @@ export class GameState {
       fu: this.flowerUp,
       ls: this.loginStreak,
       ld: this.lastLoginDate,
+      vx: this.voxelMods,
       m: this.muted,
       r: this.rainOn,
       x: this.xp,
@@ -822,6 +830,9 @@ export class GameState {
       : {}
     this.loginStreak = Math.max(0, Math.floor(num(data.ls, 0)))
     this.lastLoginDate = typeof data.ld === 'string' ? data.ld.slice(0, 10) : ''
+    this.voxelMods = Array.isArray(data.vx)
+      ? data.vx.filter(v => v && typeof v === 'object' && v.op === 'add' && Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z))
+      : []
     this.rainOn = !!data.r
 
     this.xp = num(data.x, 0)

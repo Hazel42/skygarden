@@ -12,6 +12,7 @@ import { Fauna } from './fauna.js'
 import { FX } from './fx.js'
 import { DayNight } from './daynight.js'
 import { GameState, LEVEL_UNLOCKS, FLOWER_UPGRADES, fmt } from './state.js'
+import { VOXEL_MATS } from './build.js'
 import { Builder } from './build.js'
 import { UI } from './ui.js'
 import { audio } from './audio.js'
@@ -58,6 +59,8 @@ const watchdog = setInterval(() => {
 }, 1000)
 
 const canvas = document.getElementById('scene')
+let renderOn = false
+let spiritReq = { g: null, active: false, cat: null, isKoi: false, label: '', timer: 0, nextSpawn: 100 }
 bootLog('🌱 waking the renderer…')
 let renderer
 try {
@@ -282,6 +285,8 @@ async function connectCloudSave() {
     if (!ok) { setCloudIndicator(''); return }
     setCloudIndicator('on')
     await flushOutbox()
+    // jangan restore dari cloud jika ada perubahan lokal yang belum sync
+    if (builder._localDirty) return
     const remoteSave = await Promise.race([cloud.pull(), sleep(3000).then(() => null)])
     if (!isValidRemoteSave(remoteSave)) return
     const cur = state.readLocalRaw()
@@ -358,6 +363,21 @@ const ui = new UI(state, {
         audio.chime(0.12)
       }, 1800)
     }
+    if (offline && offline.gained >= 1) {
+      const hrs = Math.floor(offline.awaySecs / 3600)
+      const mins = Math.floor((offline.awaySecs % 3600) / 60)
+      const durStr = hrs > 0 ? `${hrs}j ${mins}m` : `${mins}m`
+      ui.showBanner('🌸 Selamat Datang Kembali!',
+        `+${fmt(offline.gained)} ✨ dipanen selama ${durStr} tidak online` +
+        (state.loginStreak >= 3 ? ' · 🔥 Streak ' + state.loginStreak + ' hari!' : '')
+      )
+    }
+    // bonus kategori hari ini
+    const bc = state.bonusCategory()
+    const BC_NAMES = { nature: '🌳 Alam', lights: '✨ Cahaya', buildings: '🏯 Bangunan', decor: '🏮 Dekorasi', fauna: '🦊 Fauna' }
+    setTimeout(() => {
+      ui.toast(`⚡ Bonus hari ini: perk ${BC_NAMES[bc] || bc} ×2!`, 5000)
+    }, 3500)
     if (!state.guide.dismissed && !state.guide.done) ui.showGuide()
     else ui.hideGuide()
     ui.showHint()
@@ -494,6 +514,19 @@ const ui = new UI(state, {
     state.save()
     ui.hideGuide()
   },
+  onVoxMode(on) { builder.setVoxMode(on ? 'add' : null) },
+  onVoxSubMode(mode) { builder.setVoxMode(mode) },
+  onVoxMat(mat) { builder.setVoxMat(mat) },
+  onVoxelPlaced(v) {
+    state.voxelMods.push({ op: 'add', ...v })
+    state.save()
+  },
+  onVoxelRemoved(v) {
+    const ix = state.voxelMods.findIndex(m => m.x === v.x && m.y === v.y && m.z === v.z)
+    if (ix >= 0) state.voxelMods.splice(ix, 1)
+    else state.voxelMods.push({ op: 'del', ...v })
+    state.save()
+  },
   onPhotoShot() {
     try {
       composer.render()
@@ -516,6 +549,10 @@ const ui = new UI(state, {
     setTimeout(() => audio.unlock(), 450)
     if (def.kind === 'expandMain') {
       world.setIslandStage(def.stage, true)
+      // kamera smooth transition ke pulau yang lebih besar
+      const newLim = Math.max(14, (state.domains.main || 1) * 3.5)
+      gsap.to(controls.target, { x: 0, y: 7, z: 0, duration: 1.5, ease: 'power2.inOut' })
+      controls.maxDistance = 30 + (world.R || 15) * 2.4
       fx.burst(world.anchors.pagodaTop.clone().setY(world.anchors.pagodaTop.y - 6), 'celebrate')
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2
@@ -555,8 +592,23 @@ const ui = new UI(state, {
     if (!r) return
     if (!r.ok) { ui.toast('⚠️ Essence belum cukup untuk upgrade'); return }
     audio.buy()
-    const p = builder.selGroup?.position.clone()
-    if (p) fx.spawnSpark(p.setY(p.y + 1), ['#FFE29A', '#BFFFE0', '#FFF'])
+    const g = builder.selGroup
+    const p = g?.position.clone()
+    if (p && builder.selBox) {
+      // sparkle burst di atas objek
+      const top = p.clone()
+      top.y += (builder.itemById.get(g.userData.type)?.size?.[1] || 5) * (builder.itemById.get(g.userData.type)?.scale || 1) * (g.userData.s ?? 1)
+      fx.burst(top, 'gold')
+      fx.spawnSpark(top, ['#FFE29A', '#FFD76E', '#FFF'])
+      // scale pulse
+      gsap.fromTo(g.scale, {
+        x: g.scale.x * 1.15, y: g.scale.y * 0.85, z: g.scale.z * 1.15
+      }, {
+        x: g.scale.x, y: g.scale.y, z: g.scale.z,
+        duration: 0.4, ease: 'elastic.out(1, 0.4)'
+      })
+    }
+    state.logEvent(`⬆ ${builder.itemById.get(g?.userData.type)?.name || ''} → Lv${r.lv}`, '⬆')
     state.save()
   },
   onObjStore() {
@@ -752,13 +804,13 @@ world.onStarRevealed = () => {
   ui.toast('🌟 Star Peak mencapai lautan awan!')
 }
 
-builder.loadCatalog().then(async () => {
-  const types = [...new Set(state.placements.map(p => p.t))]
-  await Promise.all(types.map(t => builder.ensureTemplate(t)))
-  builder.loadList(state.placements)
-  ui.renderBuild()
-  prevShow('nature/pohon_sakura')
-})
+  builder.loadCatalog().then(async () => {
+    const types = [...new Set(state.placements.map(p => p.t))]
+    await Promise.all(types.map(t => builder.ensureTemplate(t)))
+    builder.loadList(state.placements)
+    builder.loadVoxelMods(state.voxelMods)
+    ui.renderBuild()
+  })
 
 builder.hooks.onSelChange = info => info ? ui.showObj(info) : ui.hideObj()
 
@@ -1256,7 +1308,7 @@ canvas.addEventListener('pointerdown', e => {
   if (radial.isOpen) { radial.close(); return }
   clearTimeout(lpTimer)
   lpTimer = setTimeout(() => {
-    if (moved || builder.active || ui.removing) return
+    if (moved || builder.active || ui.removing || (ui.managing && builder.moveArmed)) return
     ndc.set((downX / window.innerWidth) * 2 - 1, -(downY / window.innerHeight) * 2 + 1)
     raycaster.setFromCamera(ndc, camera)
     const hits = raycaster.intersectObjects(builder.placedRoot.children, true)
@@ -1290,6 +1342,9 @@ canvas.addEventListener('pointermove', e => {
   if ((builder.active && builder.mode === 'place') || builder.managing) {
     builder.handlePointer(e.clientX, e.clientY, camera, raycaster, false)
   }
+  if (builder.voxMode) {
+    builder.handleVoxPointer(e.clientX, e.clientY, camera, raycaster, false)
+  }
   if (!isDown) return
   if (Math.hypot(e.clientX - downX, e.clientY - downY) > 10) {
     moved = true
@@ -1301,12 +1356,29 @@ canvas.addEventListener('pointerup', e => {
   lastInteract = performance.now()
   clearTimeout(lpTimer)
   if (lpFired) { lpFired = false; return }
+
+  // geser aktif: selalu commit tanpa guard moved/durasi
+  const moveArmedNow = builder.managing && builder.moveArmed
+  if (!moveArmedNow) {
+  // geser commit: langsung tanpa guard
+  if (builder.managing && builder.moveArmed) {
+    builder.commitMove()
+    audio.tap(3)
+    state.save()
+    return
+  }
+
   if (moved) return
   if (performance.now() - downT > 450) return
+  }
   if (e.pointerType === 'mouse' && e.button !== 0) return
   if (buildInputActive()) {
     builder.handlePointer(e.clientX, e.clientY, camera, raycaster, true)
     if (!buildInputActive()) controls.enableRotate = true
+    return
+  }
+  if (builder.voxMode) {
+    builder.handleVoxPointer(e.clientX, e.clientY, camera, raycaster, true)
     return
   }
   if (ui.anyPanelOpen()) {
@@ -1532,7 +1604,6 @@ async function pushCloud() {
 }
 
 let animError = false
-let renderOn = false
 function animate() {
   requestAnimationFrame(animate)
   if (animError || !renderOn) return
@@ -1546,7 +1617,6 @@ function animate() {
 }
 
 let sakuraBloom = { active: false, timer: 150, left: 0 }
-const spiritReq = { g: null, active: false, cat: null, isKoi: false, label: '', timer: 0, nextSpawn: 100 }
 
 function spawnSpirit() {
   const cats = ['nature', 'lights', 'buildings', 'decor']
@@ -1661,6 +1731,10 @@ function runFrame() {
       if (spiritReq.g) {
         spiritReq.g.position.y = 17 + Math.sin(tGlob * 1.5) * 1.2
         spiritReq.g.rotation.y = tGlob * 0.6
+        // trail sparkle
+        if (Math.random() < 0.06) {
+          fx.spawnSpark(spiritReq.g.position.clone(), ['#D8B4FE', '#C084FC'])
+        }
       }
       if (spiritReq.timer > 45) despawnSpirit(false)
     }
@@ -1674,6 +1748,7 @@ function runFrame() {
         sakuraBloom.active = true
         sakuraBloom.left = (weekend ? 60 : 40) + evB * 5 + Math.min((state.placedCounts().fauna || 0), 20) * 1.5
         fx.sakuraLevel = Math.max(fx.sakuraLevel, 1)
+        fx.bloomBoost = 1.5
         audio.chime(0.12)
         ui.toast(weekend ? '🎉 Weekend Bloom! Tap ×2 selama 60 detik' : '🌸 Sakura Bloom! Tap ×2 selama 40 detik', 4200)
         fx.burst(world.anchors.pagodaTop.clone().setY(world.anchors.pagodaTop.y - 5), 'gold')
@@ -1683,6 +1758,7 @@ function runFrame() {
       if (sakuraBloom.left <= 0) {
         sakuraBloom.active = false
         sakuraBloom.timer = weekend ? 240 + Math.random() * 100 : 380 + Math.random() * 160
+        fx.bloomBoost = 1
         syncWorldToState()
         ui.toast('🌸 Sakura Bloom berakhir — sampai jumpa lagi!')
       }
@@ -1704,6 +1780,15 @@ function runFrame() {
   if (ambAcc > 0.35) { ambAcc = 0; audio.setAmbNight(env.nf) }
   nfAcc += dt
   if (nfAcc > 0.4) { nfAcc = 0; fauna.setNightFactor(env.nf) }
+  // per-frame geser: raycast + update posisi
+  if (builder.moveArmed && builder.selGroup) {
+    builder.updateMovingObject(lastPX, lastPY, camera, raycaster)
+  }
+  builder._auraAcc += dt
+  if (builder._auraAcc > 1) { builder._auraAcc = 0; builder.updateSynergyAuras() }
+  builder.animateAuras(tGlob)
+  builder.setRaycaster(camera, raycaster, lastPX, lastPY)
+  builder.perFrameUpdate()
   fauna.update(dt)
   fx.update(dt, tGlob, env)
   dock.update()

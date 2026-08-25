@@ -84,8 +84,20 @@
       <div class="bprows">
         <button id="btnDeleteMode" class="mini">🗑 Hapus: OFF</button>
         <button id="btnManageMode" class="mini">🎛 Kelola Objek: OFF</button>
+        <button id="btnVoxMode" class="mini">🧱 Blok: OFF</button>
         <button id="btnBuildDone" class="mini done">✓ Done</button>
       </div>
+    </div>
+
+    <div id="voxPanel" class="panel hidden">
+      <div class="phead"><span>🧱 Bangun Blok</span><button class="pclose" id="btnCloseVox" title="Close">✕</button></div>
+      <div class="bprows">
+        <button id="btnVoxAdd" class="mini done">➕ Tambah</button>
+        <button id="btnVoxRemove" class="mini">❌ Hapus</button>
+      </div>
+      <label class="authlabel">Material</label>
+      <div id="matPalette" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px"></div>
+      <div class="dim" style="font-size:.7rem;margin-top:8px;line-height:1.4">Klik permukaan untuk menambah/menghapus blok. Material air bersifat transparan.</div>
     </div>
 
     <div id="placePanel" class="panel hidden">
